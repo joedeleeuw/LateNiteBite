@@ -1,0 +1,22 @@
+{
+  "lockfileVersion": 1,
+  "configVersion": 1,
+  "workspaces": {
+    "": {
+      "name": "lnb-spike",
+      "dependencies": {
+        "opening_hours": "^3.13.0",
+        "zod": "^4.4.3",
+      },
+    },
+  },
+  "packages": {
+    "i18next": ["i18next@26.3.1", "", { "peerDependencies": { "typescript": "^5 || ^6" }, "optionalPeers": ["typescript"] }, "sha512-txQqd5EULsqEh9OJqRH15aCaOuy/nLJyhw5EHCSKLKJE1aBbb3Zve2+uQIxgWhPm1QqUQoWyQBm2kfmmIrzkcQ=="],
+
+    "opening_hours": ["opening_hours@3.13.0", "", { "dependencies": { "i18next": "^26.1.0", "suncalc": "^1.9.0" } }, "sha512-yQxRzM+ggFvmgML53tcnI3Ugy/OCt4HgyYeTryD2tgahfcjDNSgrU2wTs1ccNhA2ytatNUwKDJcLi2u54nT2Bg=="],
+
+    "suncalc": ["suncalc@1.9.0", "", {}, "sha512-vMJ8Byp1uIPoj+wb9c1AdK4jpkSKVAywgHX0lqY7zt6+EWRRC3Z+0Ucfjy/0yxTVO1hwwchZe4uoFNqrIC24+A=="],
+
+    "zod": ["zod@4.4.3", "", {}, "sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ=="],
+  }
+}

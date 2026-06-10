@@ -1,0 +1,9 @@
+{
+  "name": "lnb-spike",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "opening_hours": "^3.13.0",
+    "zod": "^4.4.3"
+  }
+}
