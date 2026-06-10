@@ -43,6 +43,7 @@ scripts/       asset compilation
 - **No inline comments.** Code is self-documenting.
 - **TypeScript strict.** No `any`, no type assertions without justification.
 - **Tooling only when soundly applicable.** Don't adopt a library because it exists; cite the LNB use case.
+- **Agentic verification before human review.** Never ask the human to look at a surface you haven't driven agentically first — same server, same route, same interaction, evidence attached. Demo/study screens must loop or otherwise self-evidence; one-shot animations that end in stillness read as broken.
 - **Branch names describe the human task.** Never append `-codex`, `_codex`, or similar AI-origin markers.
 - **Server components first.** Minimize client JS.
 - **No AI-gimmick features.** The product is honest data + client compute, not an AI layer.

@@ -97,6 +97,19 @@ parallel so the splash always has a real app to hand off to.
 > The mouse is the brand's one easter egg (per the homage rule) and a mascot seed —
 > the Late Nite Bite answer to murderbox's Tito.
 
+## Staging correction (Joe's level-set, 2026-06-09 late)
+
+The vignette is a **picture within a picture** — a small world, then an animation. Canon staging:
+
+- **The bulb hangs from the ceiling** (pendant): wooden rafter across the top, cord + socket cup, visible screw threads, glass pointing down. Never the upright table-lamp orientation in the splash.
+- **The mouse sits on the rafter** beside the socket, asleep — bigger than before; the mark's old crown-perch undersold it.
+- **Tail: shorter and chunky**, never strandy — it drops from the rafter and **coils visibly around the thread bands**. The tail is the crank.
+- Screw-in physics flip accordingly: the bulb screws **up** into the socket (rises while rocking), the mouse stays still on the rafter, the tail does the turning.
+- Reference renders: /tmp lnb-scene v1→v3 study (2026-06-09); v3 staging approved-pending-Joe.
+- Open question for Joe: the app icon still uses the upright isolated mark (reads well at thumbnail) — keep, or re-render from the hanging vignette?
+
+Study-screen law (learned the hard way): demo screens **loop** (play, hold ~1s, replay) and render large; a one-shot 1.5s beat that ends in stillness reads as "no animation" to any human who blinks.
+
 ## Screw-in beat — study status
 
 Lives at `src/splash/ScrewInStudy.tsx`, dev route `/study`, tap to replay. Design
@@ -107,6 +120,8 @@ build (pending first dev build); flow loop = maestro, arrives with Phase 1.
 - **v1** failed review: pivoted at view center (read as pendulum wobble, not screwing); no anticipation; glow faded instead of flicking.
 - **v2** passed the static contact sheet: thread-block pivot (translate-rotate-translate), 90ms anticipation lift, incandescent 2-pulse flicker (0 → 0.7 → 0.25 → 1), PUNCH settle at 990ms.
 - **v3 next:** mouse on its own layer with rotational lag so it reads asleep-and-limp while the bulb turns; sheen held screen-space during rotation; live-rhythm judgment (flicker timing) needs motion, not stills.
+- **v4 (staging correction applied):** rebuilt as the hanging vignette (`src/splash/Vignette.tsx` layers + rebuilt study): bulb rises into the ceiling socket, thread bands tuck behind the cup, mouse static on the rafter, loops every 3.8s + tap-to-replay, viewport-scaled. Verified agentically on the dev server with frame evidence.
+- **v5 punch list:** tail thread-coil is static while the bulb rises — registration drifts mid-beat; move the coil into the bulb layer (it rides the threads) or key the tail. Mouse ear/eye placement reads slightly muddled at size — one pass on the face. Idle life after settle: mouse breathing, glow micro-flicker.
 
 ## Mark punch list (v4, `src/splash/BulbMark.tsx`)
 

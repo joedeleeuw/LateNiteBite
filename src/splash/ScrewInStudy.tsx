@@ -1,40 +1,57 @@
 import { useCallback, useEffect } from "react";
-import { StyleSheet, View } from "react-native";
+import { StyleSheet, View, useWindowDimensions } from "react-native";
 import Animated, {
   Easing,
   useAnimatedStyle,
   useSharedValue,
   withDelay,
+  withRepeat,
   withSequence,
   withTiming,
 } from "react-native-reanimated";
-import { BulbBody, BulbGlow, MouseLayer, SheenLayer } from "@/splash/BulbMark";
+import {
+  VignetteBulb,
+  VignetteFixture,
+  VignetteGlow,
+  VignetteMouse,
+  VignetteTail,
+} from "@/splash/Vignette";
 import { Pressable, Text } from "@/tw";
 
 const PUNCH = Easing.bezier(0.16, 1, 0.3, 1);
 const BREATHE = Easing.bezier(0.4, 0, 0.2, 1);
 
-const DROP_FROM = -26;
-const ROCK_FROM = -12;
-const THREAD_PIVOT = 30;
+const VIEW_H = 300;
+const HANG_UNITS = 16;
+const ROCK_FROM = -8;
+const SOCKET_PIVOT_UNITS = 66 - 150;
+const MOUSE_PIVOT_X_UNITS = 110 - 100;
+const MOUSE_PIVOT_Y_UNITS = 28 - 150;
+const LOOP_MS = 6500;
 
 export function ScrewInStudy() {
-  const drop = useSharedValue(DROP_FROM);
+  const { height } = useWindowDimensions();
+  const sceneHeight = Math.min(640, height * 0.78);
+  const sceneWidth = (sceneHeight / VIEW_H) * 200;
+  const unit = sceneHeight / VIEW_H;
+
+  const hang = useSharedValue(HANG_UNITS * unit);
   const rock = useSharedValue(ROCK_FROM);
-  const mouseRock = useSharedValue(ROCK_FROM);
   const settle = useSharedValue(1);
   const glow = useSharedValue(0);
+  const breath = useSharedValue(1);
 
   const run = useCallback(() => {
-    drop.set(DROP_FROM);
+    const hangFrom = HANG_UNITS * unit;
+    hang.set(hangFrom);
     rock.set(ROCK_FROM);
-    mouseRock.set(ROCK_FROM);
     settle.set(1);
     glow.set(0);
+    breath.set(1);
 
-    drop.set(
+    hang.set(
       withSequence(
-        withTiming(-32, { duration: 90, easing: BREATHE }),
+        withTiming(hangFrom + 3 * unit, { duration: 90, easing: BREATHE }),
         withTiming(0, { duration: 900, easing: BREATHE }),
       ),
     );
@@ -42,19 +59,9 @@ export function ScrewInStudy() {
       withDelay(
         90,
         withSequence(
-          withTiming(8, { duration: 360, easing: BREATHE }),
-          withTiming(-4, { duration: 280, easing: BREATHE }),
-          withTiming(0, { duration: 260, easing: BREATHE }),
-        ),
-      ),
-    );
-    mouseRock.set(
-      withDelay(
-        140,
-        withSequence(
-          withTiming(6.5, { duration: 360, easing: BREATHE }),
-          withTiming(-3.2, { duration: 280, easing: BREATHE }),
-          withTiming(0, { duration: 290, easing: BREATHE }),
+          withTiming(5, { duration: 340, easing: BREATHE }),
+          withTiming(-3, { duration: 280, easing: BREATHE }),
+          withTiming(0, { duration: 280, easing: BREATHE }),
         ),
       ),
     );
@@ -62,7 +69,7 @@ export function ScrewInStudy() {
       withDelay(
         990,
         withSequence(
-          withTiming(1.04, { duration: 140, easing: PUNCH }),
+          withTiming(1.03, { duration: 140, easing: PUNCH }),
           withTiming(1, { duration: 420, easing: BREATHE }),
         ),
       ),
@@ -74,32 +81,45 @@ export function ScrewInStudy() {
           withTiming(0.7, { duration: 60 }),
           withTiming(0.25, { duration: 70 }),
           withTiming(1, { duration: 280, easing: BREATHE }),
+          withRepeat(
+            withSequence(
+              withTiming(0.96, { duration: 900, easing: BREATHE }),
+              withTiming(1, { duration: 1100, easing: BREATHE }),
+            ),
+            -1,
+            true,
+          ),
         ),
       ),
     );
-  }, [drop, glow, mouseRock, rock, settle]);
+    breath.set(
+      withDelay(
+        1500,
+        withRepeat(
+          withSequence(
+            withTiming(1.015, { duration: 1300, easing: BREATHE }),
+            withTiming(1, { duration: 1500, easing: BREATHE }),
+          ),
+          -1,
+          true,
+        ),
+      ),
+    );
+  }, [breath, glow, hang, rock, settle, unit]);
 
   useEffect(() => {
     run();
+    const loop = setInterval(run, LOOP_MS);
+    return () => clearInterval(loop);
   }, [run]);
 
-  const bodyStyle = useAnimatedStyle(() => ({
+  const bulbStyle = useAnimatedStyle(() => ({
     transform: [
-      { translateY: drop.get() },
-      { translateY: THREAD_PIVOT },
+      { translateY: hang.get() },
+      { translateY: SOCKET_PIVOT_UNITS * unit },
       { rotate: `${rock.get()}deg` },
       { scale: settle.get() },
-      { translateY: -THREAD_PIVOT },
-    ],
-  }));
-
-  const mouseStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateY: drop.get() },
-      { translateY: THREAD_PIVOT },
-      { rotate: `${mouseRock.get()}deg` },
-      { scale: settle.get() },
-      { translateY: -THREAD_PIVOT },
+      { translateY: -SOCKET_PIVOT_UNITS * unit },
     ],
   }));
 
@@ -107,26 +127,41 @@ export function ScrewInStudy() {
     opacity: glow.get(),
   }));
 
+  const mouseStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: MOUSE_PIVOT_X_UNITS * unit },
+      { translateY: MOUSE_PIVOT_Y_UNITS * unit },
+      { scale: breath.get() },
+      { translateX: -MOUSE_PIVOT_X_UNITS * unit },
+      { translateY: -MOUSE_PIVOT_Y_UNITS * unit },
+    ],
+  }));
+
   return (
     <Pressable
       onPress={run}
       className="flex-1 items-center justify-center bg-[#0A101C]"
     >
-      <View style={{ width: 200, height: 300 }}>
+      <View style={{ width: sceneWidth, height: sceneHeight }}>
         <Animated.View style={[StyleSheet.absoluteFill, glowStyle]}>
-          <BulbGlow />
+          <VignetteGlow width={sceneWidth} height={sceneHeight} />
         </Animated.View>
-        <Animated.View style={[StyleSheet.absoluteFill, bodyStyle]}>
-          <BulbBody />
+        <Animated.View style={[StyleSheet.absoluteFill, bulbStyle]}>
+          <VignetteBulb width={sceneWidth} height={sceneHeight} />
         </Animated.View>
         <View style={StyleSheet.absoluteFill}>
-          <SheenLayer />
+          <VignetteFixture width={sceneWidth} height={sceneHeight} />
         </View>
         <Animated.View style={[StyleSheet.absoluteFill, mouseStyle]}>
-          <MouseLayer />
+          <VignetteMouse width={sceneWidth} height={sceneHeight} />
         </Animated.View>
+        <View style={StyleSheet.absoluteFill}>
+          <VignetteTail width={sceneWidth} height={sceneHeight} />
+        </View>
       </View>
-      <Text className="mt-10 text-xs text-lnb-muted">tap to replay</Text>
+      <Text className="mt-6 text-xs text-lnb-muted">
+        loops on its own — tap to replay now
+      </Text>
     </Pressable>
   );
 }

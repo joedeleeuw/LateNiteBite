@@ -47,6 +47,24 @@ Two dialects, one night:
 
 Shared discipline: related controls share one chrome cluster; unrelated groups get space, not borders; system defaults first, tuned lightly.
 
+### Spot imagery: illustrated, never photographic (v1 law)
+
+No photo APIs exist that we can own at $0 (OSM has none; Google/Yelp forbid caching). The constraint is the brand: **amenity glyphs drawn in the lockup's monoline-rounded DNA** (pizza slice, mug, pint, bowl — amber on navy) carry every spot's identity. Photos enter only if the Phase 3 community brings them.
+
+### The card stack (Joe's direction, verbatim)
+
+"extremely high quality glossy lightly bordered front and centered stacked easy to go through, LIGHT, doesn't pull you, they are there."
+
+Spot cards: glossy surface (subtle gloss sweep + warm inner glow), hairline light border (~16% cream), front-and-center, stacked with cards breathing behind, easy flick-through. Weightless presence — never engagement-bait. This is the glass dialect's natural home on iOS.
+
+### The open (signature transition)
+
+Tapping a card **opens it from where it sits** — shared-element zoom into the detail surface — and closing **zips back into the same living card** (expo-router 56's retain keeps the origin screen rendered behind, so the return lands live, never on a re-render). Hand-keyed in Reanimated; no transition library (react-native-screen-transitions peer-depends on the react-navigation packages the SDK 56 fork removed — re-evaluate if it gains fork support). Detail actions ride a @swmansion/react-native-bottom-sheet over the opened card.
+
+### The floating pill (chrome shape)
+
+Action chrome is a **floating pill cluster** hovering over edge-to-edge content (reference: the SDK 56 bottom-toolbar pill Joe flagged). One design, two dialects: Liquid Glass pill on iOS (expo-glass-effect), `Stack.Toolbar` bottom toolbar in tonal navy on Android (M3E). Homes: Right Now filter actions (Phase 2), card-stack actions (navigate · call · share) replacing full-width buttons. Present, doesn't pull.
+
 ### Tokens (source of truth: `src/global.css`)
 
 | token | dark (the brand) | light (paper) |

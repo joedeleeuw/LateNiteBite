@@ -34,6 +34,8 @@ Audited 2026-06-09. Every decision below names the LNB use case or the reason it
 | 22 | Tool minimums (Xcode 26.4, iOS 16.4, TS 6.0.3) | **Verified — no action** | TS pinned at `~6.0.3` in devDependencies. Xcode/iOS enforced at build time, not in code. |
 | 23 | On-demand filesystem / native Node watcher defaults | **Verified — no action** | Metro config defaults; no override in `metro.config.js`. |
 | 24 | Hermes bytecode diffing | **Defer → when expo-updates is added** | expo-updates not installed. Bytecode diffing only matters for OTA update payloads. |
+| 25 | `Stack.Toolbar` on Android (experimental, Stack v5) | **Defer → design pass / Phase 2** | We run `headerShown: false`; iOS chrome comes from expo-glass-effect, but the Android M3 Expressive dialect has no native chrome primitive picked yet. Stack.Toolbar (header/bottom toolbar) is the likely sanctioned answer for Phase 2 filter chrome — adopt when the design pass settles Android chrome, not before (API is experimental). |
+| 26 | Native Tabs `disabled` prop | **Moot until tabs exist** | No tab bar is deliberate (Phase 1 = one surface). Native tabs are already the canon path when Phase 2 adds surfaces; `disabled` comes free then. |
 
 ---
 
