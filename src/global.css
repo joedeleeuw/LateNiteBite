@@ -1,0 +1,70 @@
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/preflight.css" layer(base);
+@import "tailwindcss/utilities.css";
+@import "uniwind";
+@source "../app";
+
+@layer base {
+  html {
+    color-scheme: light dark;
+  }
+}
+
+:root {
+  --lnb-bg: rgb(250 247 240);
+  --lnb-surface: rgb(255 255 255);
+  --lnb-surface-2: rgb(242 237 226);
+  --lnb-text: rgb(18 21 28);
+  --lnb-text-2: rgb(60 68 82);
+  --lnb-muted: rgb(118 126 140);
+  --lnb-border: rgb(18 21 28 / 0.12);
+  --lnb-glow: rgb(186 110 12);
+  --lnb-glow-dim: rgb(186 110 12 / 0.12);
+  --lnb-open: rgb(22 143 74);
+  --lnb-closed: rgb(198 60 60);
+
+  @variant light {
+    --lnb-bg: rgb(250 247 240);
+    --lnb-surface: rgb(255 255 255);
+    --lnb-surface-2: rgb(242 237 226);
+    --lnb-text: rgb(18 21 28);
+    --lnb-text-2: rgb(60 68 82);
+    --lnb-muted: rgb(118 126 140);
+    --lnb-border: rgb(18 21 28 / 0.12);
+    --lnb-glow: rgb(186 110 12);
+    --lnb-glow-dim: rgb(186 110 12 / 0.12);
+    --lnb-open: rgb(22 143 74);
+    --lnb-closed: rgb(198 60 60);
+  }
+
+  @variant dark {
+    --lnb-bg: rgb(10 16 28);
+    --lnb-surface: rgb(17 25 41);
+    --lnb-surface-2: rgb(24 34 53);
+    --lnb-text: rgb(236 240 247);
+    --lnb-text-2: rgb(178 190 208);
+    --lnb-muted: rgb(118 132 154);
+    --lnb-border: rgb(214 226 243 / 0.1);
+    --lnb-glow: rgb(255 184 77);
+    --lnb-glow-dim: rgb(255 184 77 / 0.16);
+    --lnb-open: rgb(80 200 130);
+    --lnb-closed: rgb(233 99 99);
+  }
+}
+
+@layer theme {
+  @theme {
+    --color-lnb-bg: var(--lnb-bg);
+    --color-lnb-surface: var(--lnb-surface);
+    --color-lnb-surface-2: var(--lnb-surface-2);
+    --color-lnb-text: var(--lnb-text);
+    --color-lnb-text-2: var(--lnb-text-2);
+    --color-lnb-muted: var(--lnb-muted);
+    --color-lnb-border: var(--lnb-border);
+    --color-lnb-glow: var(--lnb-glow);
+    --color-lnb-glow-dim: var(--lnb-glow-dim);
+    --color-lnb-open: var(--lnb-open);
+    --color-lnb-closed: var(--lnb-closed);
+  }
+}
+
