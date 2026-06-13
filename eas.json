@@ -1,0 +1,37 @@
+{
+  "cli": {
+    "version": ">= 16.0.1",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal"
+    },
+    "preview": {
+      "distribution": "internal"
+    },
+    "production": {
+      "autoIncrement": true,
+      "android": {
+        "buildType": "app-bundle"
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "android": {
+        "applicationId": "com.joedeleeuw.latenitebite",
+        "track": "internal",
+        "releaseStatus": "completed"
+      },
+      "ios": {
+        "ascAppId": "6780033955",
+        "appName": "Late Nite Bite",
+        "bundleIdentifier": "com.joedeleeuw.latenitebite",
+        "language": "en-US",
+        "sku": "com.joedeleeuw.latenitebite"
+      }
+    }
+  }
+}

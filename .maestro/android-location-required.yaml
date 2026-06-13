@@ -1,0 +1,37 @@
+appId: ${APP_ID}
+name: android location required smoke
+tags:
+  - smoke
+  - android
+  - location
+env:
+  APP_ID: com.joedeleeuw.latenitebite
+---
+- launchApp:
+    clearState: true
+    permissions:
+      location: deny
+- runFlow:
+    when:
+      platform: Android
+      visible:
+        id: "com.android.permissioncontroller:id/permission_deny_button"
+    commands:
+      - tapOn:
+          id: "com.android.permissioncontroller:id/permission_deny_button"
+- extendedWaitUntil:
+    visible:
+      id: "lnb_location_required_title"
+    timeout: 15000
+- assertVisible:
+    id: "lnb_location_required"
+- assertVisible:
+    id: "lnb_no_fallback_copy"
+- assertVisible:
+    id: "lnb_open_settings_button"
+- assertVisible:
+    id: "lnb_try_location_again_button"
+- assertNotVisible:
+    id: "lnb_spot_list"
+- assertNotVisible:
+    id: "lnb_spot_row"

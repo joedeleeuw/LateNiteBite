@@ -2,7 +2,8 @@
   "expo": {
     "name": "Late Nite Bite",
     "slug": "latenitebite",
-    "version": "0.1.0",
+    "owner": "sleepernet",
+    "version": "1.0.3",
     "orientation": "portrait",
     "scheme": "latenitebite",
     "userInterfaceStyle": "automatic",
@@ -20,7 +21,11 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0A101C"
-      }
+      },
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -29,6 +34,22 @@
     },
     "plugins": [
       "expo-router",
+      [
+        "@sentry/react-native/expo",
+        {
+          "url": "https://sentry.io/",
+          "organization": "sleeper",
+          "project": "latenitebite",
+          "experimental_android": {
+            "enableAndroidGradlePlugin": true,
+            "uploadNativeSymbols": true,
+            "autoUploadNativeSymbols": true,
+            "includeNativeSources": true,
+            "includeProguardMapping": true,
+            "autoUploadProguardMapping": true
+          }
+        }
+      ],
       [
         "expo-splash-screen",
         {
@@ -50,7 +71,18 @@
       ]
     ],
     "experiments": {
+      "inlineModules": {
+        "watchedDirectories": [
+          "native"
+        ]
+      },
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "d70a66b1-351f-4cb7-9b43-0838417341b9"
+      }
     }
   }
 }

@@ -2,68 +2,38 @@ import { LegendList, type LegendListRenderItemProps } from "@legendapp/list";
 import { useQuery } from "@tanstack/react-query";
 import * as Location from "expo-location";
 import { Link } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ActivityIndicator, Linking } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { fetchSpots } from "@/core/overpass";
 import { rankSpots, type RankedSpot } from "@/core/rank";
 import {
-  FALLBACK_PLACES,
   bboxForCoordinates,
   formatAmenity,
   formatDistance,
   formatHeadline,
   nextOpeningLabel,
-  rememberRankedSpots,
+  requestLocationPermission,
   routeIdForSpotId,
   roundedCoordinates,
   spotQueryKey,
 } from "@/rightNow";
 import { BulbMark } from "@/splash/BulbMark";
 import { Pressable, Text, View } from "@/tw";
+import { useMinuteNow } from "@/use-minute-now";
 
 type LocationChoice = {
   label: string;
   coordinates: { lat: number; lon: number };
 };
 
-type PermissionState = "asking" | "locating" | "denied" | "ready";
+type PermissionState = "asking" | "locating" | "denied" | "error" | "ready";
 
 type SpotRowItem = {
   ranked: RankedSpot;
   routeId: string;
+  coordinates: LocationChoice["coordinates"];
 };
-
-function floorToMinute(date = new Date()): Date {
-  const minute = new Date(date);
-  minute.setSeconds(0, 0);
-  return minute;
-}
-
-function useMinuteNow(): Date {
-  const [now, setNow] = useState(() => floorToMinute());
-
-  useEffect(() => {
-    let interval: ReturnType<typeof setInterval> | null = null;
-    const tick = () => setNow(floorToMinute());
-    const timeout = setTimeout(
-      () => {
-        tick();
-        interval = setInterval(tick, 60_000);
-      },
-      60_000 - (Date.now() % 60_000),
-    );
-
-    return () => {
-      clearTimeout(timeout);
-      if (interval) {
-        clearInterval(interval);
-      }
-    };
-  }, []);
-
-  return now;
-}
 
 function headlineClassName(state: RankedSpot["state"]): string {
   if (state.status === "open") {
@@ -79,7 +49,7 @@ function headlineClassName(state: RankedSpot["state"]): string {
 
 function Header({ label }: { label: string | null }) {
   return (
-    <View className="gap-5 px-5 pb-4">
+    <View className="gap-5 px-5 pb-4" testID="lnb_home_header">
       <View className="flex-row items-center justify-between gap-4">
         <View className="flex-row items-center gap-3">
           <BulbMark width={42} height={63} />
@@ -104,33 +74,6 @@ function Header({ label }: { label: string | null }) {
       <Text className="text-2xl font-semibold leading-8 text-lnb-text">
         open right now
       </Text>
-    </View>
-  );
-}
-
-function FallbackPicker({
-  onPick,
-}: {
-  onPick: (place: LocationChoice) => void;
-}) {
-  return (
-    <View className="gap-3 px-5">
-      <Text className="text-sm text-lnb-muted">
-        location denied. pick a launch spot.
-      </Text>
-      <View className="gap-2">
-        {FALLBACK_PLACES.map((place) => (
-          <Pressable
-            key={place.label}
-            className="border-b border-lnb-border py-4"
-            onPress={() => onPick(place)}
-          >
-            <Text className="text-base font-semibold text-lnb-text">
-              {place.label}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
     </View>
   );
 }
@@ -160,8 +103,21 @@ function SpotRow({ item }: { item: SpotRowItem }) {
   const { ranked, routeId } = item;
 
   return (
-    <Link href={{ pathname: "/spot/[id]", params: { id: routeId } }} asChild>
-      <Pressable className="border-b border-lnb-border px-5 py-4">
+    <Link
+      href={{
+        pathname: "/spot/[id]",
+        params: {
+          id: routeId,
+          lat: String(item.coordinates.lat),
+          lon: String(item.coordinates.lon),
+        },
+      }}
+      asChild
+    >
+      <Pressable
+        className="border-b border-lnb-border px-5 py-4"
+        testID="lnb_spot_row"
+      >
         <View className="gap-2">
           <View className="flex-row items-start justify-between gap-4">
             <Text className="min-w-0 flex-1 text-lg font-semibold text-lnb-text">
@@ -196,21 +152,45 @@ export default function RightNow() {
   const [locationNote, setLocationNote] = useState<string | null>(
     "use your location to find what's open nearby.",
   );
+  const mountedRef = useRef(true);
+  const locationRequestIdRef = useRef(0);
 
-  useEffect(() => {
-    let mounted = true;
+  useEffect(
+    () => () => {
+      mountedRef.current = false;
+      locationRequestIdRef.current += 1;
+    },
+    [],
+  );
 
-    async function locate() {
+  const locate = useCallback(() => {
+    const requestId = locationRequestIdRef.current + 1;
+    locationRequestIdRef.current = requestId;
+    const isCurrentRequest = () =>
+      mountedRef.current && locationRequestIdRef.current === requestId;
+
+    async function run() {
+      setChoice(null);
       setPermissionState("asking");
-      const permission = await Location.requestForegroundPermissionsAsync();
+      const permission = await requestLocationPermission(
+        Location.requestForegroundPermissionsAsync,
+        Location.PermissionStatus.GRANTED,
+      );
 
-      if (!mounted) {
+      if (!isCurrentRequest()) {
         return;
       }
 
-      if (permission.status !== Location.PermissionStatus.GRANTED) {
+      if (permission.type === "error") {
+        console.error("Location permission request failed:", permission.error);
+        setPermissionState("error");
+        setLocationNote("location failed. try again.");
+        return;
+      }
+
+      if (permission.type === "denied") {
         setPermissionState("denied");
-        setLocationNote("location denied. pick a place.");
+        setLocationNote("location permission is required.");
         return;
       }
 
@@ -221,7 +201,7 @@ export default function RightNow() {
           accuracy: Location.Accuracy.Balanced,
         });
 
-        if (!mounted) {
+        if (!isCurrentRequest()) {
           return;
         }
 
@@ -234,22 +214,21 @@ export default function RightNow() {
         });
         setPermissionState("ready");
         setLocationNote(null);
-      } catch {
-        if (!mounted) {
+      } catch (error) {
+        if (!isCurrentRequest()) {
           return;
         }
 
-        setPermissionState("denied");
-        setLocationNote("location is being weird. pick a place.");
+        console.error("Location lookup failed after permission was granted:", error);
+        setPermissionState("error");
+        setLocationNote("location failed. try again.");
       }
     }
 
-    locate();
-
-    return () => {
-      mounted = false;
-    };
+    void run();
   }, []);
+
+  useEffect(() => locate(), [locate]);
 
   const queryCoordinates = useMemo(
     () => (choice ? roundedCoordinates(choice.coordinates) : null),
@@ -258,11 +237,14 @@ export default function RightNow() {
 
   const spotsQuery = useQuery({
     queryKey: queryCoordinates ? spotQueryKey(queryCoordinates) : ["spots"],
-    queryFn: () =>
-      fetchSpots(
-        bboxForCoordinates(queryCoordinates ?? FALLBACK_PLACES[0].coordinates),
-      ),
+    queryFn: () => {
+      if (!queryCoordinates) {
+        throw new Error("Cannot fetch spots before coordinates are selected");
+      }
+      return fetchSpots(bboxForCoordinates(queryCoordinates));
+    },
     enabled: queryCoordinates != null,
+    retry: false,
     staleTime: 10 * 60 * 1000,
   });
 
@@ -274,17 +256,16 @@ export default function RightNow() {
     [now, queryCoordinates, spotsQuery.data],
   );
 
-  useEffect(() => {
-    rememberRankedSpots(ranked);
-  }, [ranked]);
-
   const rows = useMemo<SpotRowItem[]>(
     () =>
-      ranked.map((item) => ({
-        ranked: item,
-        routeId: routeIdForSpotId(item.spot.id),
-      })),
-    [ranked],
+      queryCoordinates
+        ? ranked.map((item) => ({
+            ranked: item,
+            routeId: routeIdForSpotId(item.spot.id),
+            coordinates: queryCoordinates,
+          }))
+        : [],
+    [queryCoordinates, ranked],
   );
 
   const openRows = useMemo(
@@ -293,12 +274,6 @@ export default function RightNow() {
   );
 
   const nextOpening = useMemo(() => nextOpeningLabel(ranked), [ranked]);
-
-  const pickFallback = useCallback((place: LocationChoice) => {
-    setChoice(place);
-    setPermissionState("ready");
-    setLocationNote(null);
-  }, []);
 
   const renderItem = useCallback(
     ({ item }: LegendListRenderItemProps<SpotRowItem>) => (
@@ -311,16 +286,74 @@ export default function RightNow() {
     <View
       className="flex-1 bg-lnb-bg"
       style={{ paddingTop: insets.top + 16 }}
+      testID="lnb_home_screen"
     >
       <Header label={choice?.label ?? null} />
       {locationNote ? (
-        <Text className="px-5 pb-4 text-sm text-lnb-muted">{locationNote}</Text>
+        <Text
+          className="px-5 pb-4 text-sm text-lnb-muted"
+          testID="lnb_location_note"
+        >
+          {locationNote}
+        </Text>
       ) : null}
       {permissionState === "denied" && !choice ? (
-        <FallbackPicker onPick={pickFallback} />
+        <View className="gap-3 px-5" testID="lnb_location_required">
+          <Text
+            className="text-base font-semibold text-lnb-text"
+            testID="lnb_location_required_title"
+          >
+            enable location to continue.
+          </Text>
+          <Text className="text-sm text-lnb-muted" testID="lnb_no_fallback_copy">
+            LateNiteBite does not use canned launch places.
+          </Text>
+          <View className="flex-row gap-5">
+            <Pressable
+              className="border-b border-lnb-glow py-2"
+              testID="lnb_open_settings_button"
+              onPress={() => {
+                void Linking.openSettings().catch((error) => {
+                  console.error("Failed to open settings:", error);
+                });
+              }}
+            >
+              <Text className="text-sm font-semibold text-lnb-glow">
+                open settings
+              </Text>
+            </Pressable>
+            <Pressable
+              className="border-b border-lnb-glow py-2"
+              testID="lnb_try_location_again_button"
+              onPress={locate}
+            >
+              <Text className="text-sm font-semibold text-lnb-glow">
+                try again
+              </Text>
+            </Pressable>
+          </View>
+        </View>
       ) : null}
-      {permissionState !== "denied" && !choice ? (
-        <View className="flex-row items-center gap-3 px-5 py-6">
+      {permissionState === "error" && !choice ? (
+        <View className="px-5">
+          <Pressable
+            className="self-start border-b border-lnb-glow py-2"
+            testID="lnb_try_location_again_button"
+            onPress={() => {
+              locate();
+            }}
+          >
+            <Text className="text-sm font-semibold text-lnb-glow">
+              try location again
+            </Text>
+          </Pressable>
+        </View>
+      ) : null}
+      {permissionState !== "denied" && permissionState !== "error" && !choice ? (
+        <View
+          className="flex-row items-center gap-3 px-5 py-6"
+          testID="lnb_location_loading"
+        >
           <ActivityIndicator />
           <Text className="text-sm text-lnb-muted">
             {permissionState === "locating"
@@ -332,15 +365,16 @@ export default function RightNow() {
       {choice ? (
         <View className="flex-1">
           {spotsQuery.isError ? (
-            <View className="gap-3 px-5 py-8">
+            <View className="gap-3 px-5 py-8" testID="lnb_spots_error">
               <Text className="text-base font-semibold text-lnb-text">
                 overpass is slow tonight.
               </Text>
               <Text className="text-sm text-lnb-muted">
-                try again, or pick a launch spot.
+                try again in a minute.
               </Text>
               <Pressable
                 className="self-start border-b border-lnb-glow py-2"
+                testID="lnb_retry_spots_button"
                 onPress={() => {
                   void spotsQuery.refetch();
                 }}
@@ -349,10 +383,12 @@ export default function RightNow() {
                   try again
                 </Text>
               </Pressable>
-              <FallbackPicker onPick={pickFallback} />
             </View>
           ) : spotsQuery.isPending ? (
-            <View className="flex-row items-center gap-3 px-5 py-6">
+            <View
+              className="flex-row items-center gap-3 px-5 py-6"
+              testID="lnb_spots_loading"
+            >
               <ActivityIndicator />
               <Text className="text-sm text-lnb-muted">
                 pulling nearby spots...
@@ -365,6 +401,7 @@ export default function RightNow() {
               keyExtractor={(item) => item.routeId}
               estimatedItemSize={96}
               recycleItems
+              testID="lnb_spot_list"
               ListEmptyComponent={<EmptyState nextOpening={nextOpening} />}
               ListFooterComponent={
                 <Text className="px-5 pb-8 pt-6 text-xs text-lnb-muted">

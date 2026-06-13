@@ -1,0 +1,29 @@
+appId: ${APP_ID}
+name: ios location required smoke
+tags:
+  - smoke
+  - ios
+  - location
+env:
+  APP_ID: com.joedeleeuw.latenitebite
+---
+- launchApp:
+    clearState: true
+    permissions:
+      location: never
+- extendedWaitUntil:
+    visible:
+      id: "lnb_location_required_title"
+    timeout: 15000
+- assertVisible:
+    id: "lnb_location_required"
+- assertVisible:
+    id: "lnb_no_fallback_copy"
+- assertVisible:
+    id: "lnb_open_settings_button"
+- assertVisible:
+    id: "lnb_try_location_again_button"
+- assertNotVisible:
+    id: "lnb_spot_list"
+- assertNotVisible:
+    id: "lnb_spot_row"

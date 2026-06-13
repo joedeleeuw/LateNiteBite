@@ -9,26 +9,20 @@ const LON_DELTA = 0.025;
 const QUERY_COORD_DECIMALS = 4;
 const FEET_PER_MILE = 5280;
 
-export type FallbackPlace = {
-  label: string;
-  coordinates: Coordinates;
-};
-
-export const FALLBACK_PLACES: FallbackPlace[] = [
-  { label: "tallahassee · fsu", coordinates: { lat: 30.4419, lon: -84.2985 } },
-  {
-    label: "nyc · washington sq",
-    coordinates: { lat: 40.7308, lon: -73.9973 },
-  },
-];
-
 export type SpotQueryKey = ["spots", Coordinates];
 
 export type NavigationPlatform = "ios" | "android" | "web" | string;
 
-type NavigableSpot = Pick<Spot, "coordinates" | "name">;
+export type LocationPermissionRequestResult = {
+  status: string;
+};
 
-const rememberedSpots = new Map<string, RankedSpot>();
+export type LocationPermissionResult =
+  | { type: "granted" }
+  | { type: "denied" }
+  | { type: "error"; error: unknown };
+
+type NavigableSpot = Pick<Spot, "coordinates" | "name">;
 
 function roundTo(value: number, decimals: number): number {
   const factor = 10 ** decimals;
@@ -57,6 +51,20 @@ export function bboxForCoordinates(coordinates: Coordinates): BBox {
 
 export function spotQueryKey(coordinates: Coordinates): SpotQueryKey {
   return ["spots", roundedCoordinates(coordinates)];
+}
+
+export async function requestLocationPermission(
+  requestPermission: () => Promise<LocationPermissionRequestResult>,
+  grantedStatus = "granted",
+): Promise<LocationPermissionResult> {
+  try {
+    const permission = await requestPermission();
+    return permission.status === grantedStatus
+      ? { type: "granted" }
+      : { type: "denied" };
+  } catch (error) {
+    return { type: "error", error };
+  }
 }
 
 export function formatHeadline(state: OpenState): string {
@@ -113,9 +121,15 @@ export function formatDetailState(state: OpenState): string {
 }
 
 export function nextOpeningLabel(ranked: RankedSpot[]): string | null {
-  const next = ranked.find(
-    (item) => item.state.status === "closed" && item.state.opensAt != null,
-  );
+  const next = ranked
+    .filter(
+      (item) => item.state.status === "closed" && item.state.opensAt != null,
+    )
+    .sort((a, b) => {
+      const aTime = a.state.status === "closed" ? a.state.opensAt?.getTime() : null;
+      const bTime = b.state.status === "closed" ? b.state.opensAt?.getTime() : null;
+      return (aTime ?? Number.POSITIVE_INFINITY) - (bTime ?? Number.POSITIVE_INFINITY);
+    })[0];
 
   if (!next || next.state.status !== "closed" || !next.state.opensAt) {
     return null;
@@ -125,21 +139,37 @@ export function nextOpeningLabel(ranked: RankedSpot[]): string | null {
 }
 
 export function routeIdForSpotId(id: string): string {
-  return encodeURIComponent(id).replaceAll("%", "~");
+  return encodeURIComponent(id).replaceAll("~", "%7E").replaceAll("%", "~");
 }
 
-export function rememberRankedSpots(ranked: RankedSpot[]): void {
-  for (const item of ranked) {
-    rememberedSpots.set(routeIdForSpotId(item.spot.id), item);
-  }
-}
-
-export function readRememberedSpot(routeId: string | undefined): RankedSpot | null {
+export function spotIdForRouteId(routeId: string | undefined): string | null {
   if (!routeId) {
     return null;
   }
 
-  return rememberedSpots.get(routeId) ?? null;
+  try {
+    return decodeURIComponent(routeId.replaceAll("~", "%"));
+  } catch {
+    return null;
+  }
+}
+
+export function coordinatesFromParams(params: {
+  lat?: string | string[];
+  lon?: string | string[];
+}): Coordinates | null {
+  const lat = Array.isArray(params.lat) ? params.lat[0] : params.lat;
+  const lon = Array.isArray(params.lon) ? params.lon[0] : params.lon;
+  const parsed = {
+    lat: lat ? Number(lat) : NaN,
+    lon: lon ? Number(lon) : NaN,
+  };
+
+  if (!Number.isFinite(parsed.lat) || !Number.isFinite(parsed.lon)) {
+    return null;
+  }
+
+  return roundedCoordinates(parsed);
 }
 
 export function buildNavigateUrl(
@@ -155,7 +185,7 @@ export function buildNavigateUrl(
   }
 
   if (platform === "android") {
-    return `geo:${destination}?q=${destination}(${spot.name})`;
+    return `geo:${destination}?q=${encodeURIComponent(`${destination}(${spot.name})`)}`;
   }
 
   return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}`;

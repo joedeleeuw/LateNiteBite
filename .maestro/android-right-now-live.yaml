@@ -1,0 +1,38 @@
+appId: ${APP_ID}
+name: android right now live smoke
+tags:
+  - smoke
+  - android
+  - live-data
+env:
+  APP_ID: com.joedeleeuw.latenitebite
+---
+- setLocation:
+    latitude: 30.4419
+    longitude: -84.2985
+- launchApp:
+    clearState: true
+    permissions:
+      location: allow
+- extendedWaitUntil:
+    visible:
+      id: "lnb_spot_row"
+    timeout: 60000
+- assertVisible:
+    id: "lnb_spot_list"
+- assertNotVisible:
+    id: "lnb_location_required"
+- assertNotVisible:
+    id: "lnb_no_fallback_copy"
+- tapOn:
+    id: "lnb_spot_row"
+- extendedWaitUntil:
+    visible:
+      id: "lnb_spot_detail"
+    timeout: 45000
+- assertVisible:
+    id: "lnb_spot_detail_state"
+- assertVisible:
+    id: "lnb_navigate_button"
+- assertNotVisible:
+    id: "lnb_spot_missing"
