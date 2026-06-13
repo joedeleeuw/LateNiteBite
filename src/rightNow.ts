@@ -1,8 +1,9 @@
+import { z } from "zod";
 import type { BBox } from "@/core/overpass";
 import type { Coordinates } from "@/core/geo";
 import type { OpenState } from "@/core/openNow";
 import type { RankedSpot } from "@/core/rank";
-import type { Spot } from "@/core/spot";
+import { SpotSchema, type Spot } from "@/core/spot";
 
 const LAT_DELTA = 0.02;
 const LON_DELTA = 0.025;
@@ -28,16 +29,31 @@ export type NavigationPlatform = "ios" | "android" | "web" | string;
 
 type NavigableSpot = Pick<Spot, "coordinates" | "name">;
 
-type OpenStateWire =
-  | { status: "open"; closesAt: string | null; closesInMin: number | null }
-  | { status: "closed"; opensAt: string | null }
-  | { status: "unknown"; reason: string };
+const OpenStateWireSchema = z.discriminatedUnion("status", [
+  z.object({
+    status: z.literal("open"),
+    closesAt: z.string().nullable(),
+    closesInMin: z.number().nullable(),
+  }),
+  z.object({
+    status: z.literal("closed"),
+    opensAt: z.string().nullable(),
+  }),
+  z.object({
+    status: z.literal("unknown"),
+    reason: z.string(),
+  }),
+]);
 
-type RankedSpotWire = {
-  spot: Spot;
-  distanceMi: number;
-  state: OpenStateWire;
-};
+type OpenStateWire = z.infer<typeof OpenStateWireSchema>;
+
+const RankedSpotWireSchema = z.object({
+  spot: SpotSchema,
+  distanceMi: z.number(),
+  state: OpenStateWireSchema,
+});
+
+type RankedSpotWire = z.infer<typeof RankedSpotWireSchema>;
 
 function roundTo(value: number, decimals: number): number {
   const factor = 10 ** decimals;
@@ -195,7 +211,7 @@ export function parseRankedSpotParam(raw: string | undefined): RankedSpot | null
   }
 
   try {
-    const wire = JSON.parse(raw) as RankedSpotWire;
+    const wire = RankedSpotWireSchema.parse(JSON.parse(raw));
     return {
       spot: wire.spot,
       distanceMi: wire.distanceMi,

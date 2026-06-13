@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import {
+  cancelAnimation,
   useSharedValue,
   withDelay,
   withRepeat,
@@ -25,5 +26,9 @@ export function useReanimatedLoop(run: () => void, loopMs: number): void {
         -1,
       ),
     );
+
+    return () => {
+      cancelAnimation(tick);
+    };
   }, [loopMs, run, tick]);
 }

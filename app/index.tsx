@@ -62,10 +62,16 @@ function useMinuteNow(): Date {
 
 async function resolveLocationFlow(
   signal: AbortSignal,
+  onPhase: (flow: LocationFlow) => void,
 ): Promise<LocationFlow> {
   if (signal.aborted) {
     throw new DOMException("Aborted", "AbortError");
   }
+
+  onPhase({
+    phase: "prompt",
+    note: "use your location to find what's open nearby.",
+  });
 
   const permission = await Location.requestForegroundPermissionsAsync();
 
@@ -79,6 +85,11 @@ async function resolveLocationFlow(
       note: "location denied. pick a place.",
     };
   }
+
+  onPhase({
+    phase: "locating",
+    note: "use your location to find what's open nearby.",
+  });
 
   try {
     const position = await Location.getCurrentPositionAsync({
@@ -308,13 +319,8 @@ export default function RightNow() {
     const controller = new AbortController();
 
     void (async () => {
-      setFlow({
-        phase: "locating",
-        note: "use your location to find what's open nearby.",
-      });
-
       try {
-        const next = await resolveLocationFlow(controller.signal);
+        const next = await resolveLocationFlow(controller.signal, setFlow);
         setFlow(next);
       } catch {
         return;
@@ -357,7 +363,7 @@ export default function RightNow() {
     void spotsQuery.refetch();
   }, [spotsQuery]);
 
-  const body = buildRightNowBody(flow, spotsQuery, ranked, onRetry);
+  const body = buildRightNowBody(flow, spotsQuery, ranked);
   const note = bodyNote(flow);
 
   const renderItem = useCallback(
@@ -376,17 +382,15 @@ export default function RightNow() {
       {note ? (
         <Text className="px-5 pb-4 text-sm text-lnb-muted">{note}</Text>
       ) : null}
-      {body ? (
-        <View className="flex-1">
-          <RightNowBodyView
-            body={body}
-            onPickPlace={pickPlace}
-            onRetry={onRetry}
-            bottomInset={insets.bottom}
-            renderItem={renderItem}
-          />
-        </View>
-      ) : null}
+      <View className="flex-1">
+        <RightNowBodyView
+          body={body}
+          onPickPlace={pickPlace}
+          onRetry={onRetry}
+          bottomInset={insets.bottom}
+          renderItem={renderItem}
+        />
+      </View>
     </View>
   );
 }

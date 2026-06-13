@@ -26,14 +26,10 @@ export type SpotRowItem = {
 };
 
 export type RightNowBody =
-  | { kind: "spinner"; note: string; message: string }
+  | { kind: "spinner"; message: string }
   | { kind: "pick-place"; note: string; places: FallbackPlace[] }
   | { kind: "spots-loading" }
-  | {
-      kind: "spots-error";
-      onRetry: () => void;
-      places: FallbackPlace[];
-    }
+  | { kind: "spots-error"; places: FallbackPlace[] }
   | {
       kind: "spots-list";
       openRows: SpotRowItem[];
@@ -54,7 +50,7 @@ export function headerLabel(flow: LocationFlow): string | null {
 }
 
 export function bodyNote(flow: LocationFlow): string | null {
-  if (flow.phase === "ready") {
+  if (flow.phase === "ready" || flow.phase === "denied") {
     return null;
   }
 
@@ -65,12 +61,10 @@ export function buildRightNowBody(
   flow: LocationFlow,
   spotsQuery: UseQueryResult<Spot[], Error>,
   ranked: RankedSpot[],
-  onRetry: () => void,
-): RightNowBody | null {
+): RightNowBody {
   if (flow.phase === "prompt") {
     return {
       kind: "spinner",
-      note: flow.note,
       message: "asking for location...",
     };
   }
@@ -78,7 +72,6 @@ export function buildRightNowBody(
   if (flow.phase === "locating") {
     return {
       kind: "spinner",
-      note: flow.note,
       message: "getting your spot...",
     };
   }
@@ -94,7 +87,6 @@ export function buildRightNowBody(
   if (spotsQuery.isError) {
     return {
       kind: "spots-error",
-      onRetry,
       places: FALLBACK_PLACES,
     };
   }

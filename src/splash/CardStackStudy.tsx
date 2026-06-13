@@ -142,6 +142,11 @@ export function CardStackStudy() {
       swipeX.set(e.translationX);
     })
     .onEnd((e) => {
+      if (openP.get() > 0.05) {
+        swipeX.set(withTiming(0, { duration: 280, easing: BREATHE }));
+        return;
+      }
+
       if (Math.abs(e.translationX) > 110) {
         swipeX.set(
           withTiming(

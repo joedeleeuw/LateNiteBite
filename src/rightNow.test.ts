@@ -143,9 +143,8 @@ describe("right now screen model", () => {
       { phase: "denied", note: "location denied. pick a place." },
       { isError: false, isPending: false } as never,
       [],
-      () => undefined,
     );
-    expect(denied?.kind).toBe("pick-place");
+    expect(denied.kind).toBe("pick-place");
 
     const readyLoading = buildRightNowBody(
       {
@@ -154,8 +153,17 @@ describe("right now screen model", () => {
       },
       { isError: false, isPending: true } as never,
       [],
-      () => undefined,
     );
-    expect(readyLoading?.kind).toBe("spots-loading");
+    expect(readyLoading.kind).toBe("spots-loading");
+  });
+
+  it("rejects malformed ranked route params", () => {
+    expect(parseRankedSpotParam('{"spot":{"id":"x"}}')).toBeNull();
+  });
+
+  it("round-trips ranked params through uri encoding", () => {
+    const serialized = serializeRankedSpot(sampleRanked);
+    const encoded = encodeURIComponent(serialized);
+    expect(parseRankedSpotParam(decodeURIComponent(encoded))).not.toBeNull();
   });
 });

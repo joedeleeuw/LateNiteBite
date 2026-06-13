@@ -9,6 +9,7 @@ import {
   formatDistance,
   openStateTextClass,
   parseRankedSpotParam,
+  routeIdForSpotId,
 } from "@/rightNow";
 import { Pressable, Text, View } from "@/tw";
 
@@ -38,14 +39,24 @@ function BackLink() {
 export default function SpotDetail() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<SpotParams>();
+  const routeId =
+    typeof params.id === "string"
+      ? params.id
+      : Array.isArray(params.id)
+        ? params.id[0]
+        : undefined;
   const rankedParam = params.ranked;
-  const ranked = parseRankedSpotParam(
+  const parsed = parseRankedSpotParam(
     typeof rankedParam === "string"
       ? rankedParam
       : Array.isArray(rankedParam)
         ? rankedParam[0]
         : undefined,
   );
+  const ranked =
+    parsed && routeId && routeIdForSpotId(parsed.spot.id) === routeId
+      ? parsed
+      : null;
 
   if (!ranked) {
     return (
