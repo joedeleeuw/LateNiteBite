@@ -8,7 +8,7 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
-import { scheduleOnRN } from "react-native-worklets";
+import { scheduleOnRN, scheduleOnUI } from "react-native-worklets";
 import Svg, { Circle, Defs, LinearGradient, Path, Rect, Stop } from "react-native-svg";
 import { Text, View } from "@/tw";
 
@@ -127,7 +127,6 @@ function BackCard({ depth, spot }: { depth: 1 | 2; spot: StudySpot }) {
 export function CardStackStudy() {
   const { width, height } = useWindowDimensions();
   const [order, setOrder] = useState([0, 1, 2]);
-  const [opened, setOpened] = useState(false);
   const swipeX = useSharedValue(0);
   const openP = useSharedValue(0);
 
@@ -136,8 +135,10 @@ export function CardStackStudy() {
   }, []);
 
   const pan = Gesture.Pan()
-    .enabled(!opened)
     .onUpdate((e) => {
+      if (openP.get() > 0.05) {
+        return;
+      }
       swipeX.set(e.translationX);
     })
     .onEnd((e) => {
@@ -159,15 +160,16 @@ export function CardStackStudy() {
       }
     });
 
-  const toggleOpen = useCallback(() => {
-    if (opened) {
-      openP.set(withTiming(0, { duration: 380, easing: BREATHE }));
-      setOpened(false);
-    } else {
-      openP.set(withTiming(1, { duration: 420, easing: PUNCH }));
-      setOpened(true);
-    }
-  }, [openP, opened]);
+  const toggleOpen = () => {
+    scheduleOnUI(() => {
+      "worklet";
+      if (openP.get() > 0.5) {
+        openP.set(withTiming(0, { duration: 380, easing: BREATHE }));
+      } else {
+        openP.set(withTiming(1, { duration: 420, easing: PUNCH }));
+      }
+    });
+  };
 
   const tap = Gesture.Tap()
     .maxDistance(12)

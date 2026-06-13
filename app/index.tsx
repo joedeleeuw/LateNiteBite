@@ -2,37 +2,32 @@ import { LegendList, type LegendListRenderItemProps } from "@legendapp/list";
 import { useQuery } from "@tanstack/react-query";
 import * as Location from "expo-location";
 import { Link } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactElement } from "react";
 import { ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { fetchSpots } from "@/core/overpass";
-import { rankSpots, type RankedSpot } from "@/core/rank";
+import { rankSpots } from "@/core/rank";
 import {
-  FALLBACK_PLACES,
   bboxForCoordinates,
   formatAmenity,
   formatDistance,
   formatHeadline,
-  nextOpeningLabel,
-  rememberRankedSpots,
-  routeIdForSpotId,
+  openStateTextClass,
   roundedCoordinates,
+  serializeRankedSpot,
   spotQueryKey,
 } from "@/rightNow";
+import {
+  bodyNote,
+  buildRightNowBody,
+  headerLabel,
+  type LocationChoice,
+  type LocationFlow,
+  type RightNowBody,
+  type SpotRowItem,
+} from "@/rightNowScreen";
 import { BulbMark } from "@/splash/BulbMark";
 import { Pressable, Text, View } from "@/tw";
-
-type LocationChoice = {
-  label: string;
-  coordinates: { lat: number; lon: number };
-};
-
-type PermissionState = "asking" | "locating" | "denied" | "ready";
-
-type SpotRowItem = {
-  ranked: RankedSpot;
-  routeId: string;
-};
 
 function floorToMinute(date = new Date()): Date {
   const minute = new Date(date);
@@ -65,16 +60,55 @@ function useMinuteNow(): Date {
   return now;
 }
 
-function headlineClassName(state: RankedSpot["state"]): string {
-  if (state.status === "open") {
-    return "text-lnb-open";
+async function resolveLocationFlow(
+  signal: AbortSignal,
+): Promise<LocationFlow> {
+  if (signal.aborted) {
+    throw new DOMException("Aborted", "AbortError");
   }
 
-  if (state.status === "closed") {
-    return "text-lnb-muted";
+  const permission = await Location.requestForegroundPermissionsAsync();
+
+  if (signal.aborted) {
+    throw new DOMException("Aborted", "AbortError");
   }
 
-  return "text-lnb-muted";
+  if (permission.status !== Location.PermissionStatus.GRANTED) {
+    return {
+      phase: "denied",
+      note: "location denied. pick a place.",
+    };
+  }
+
+  try {
+    const position = await Location.getCurrentPositionAsync({
+      accuracy: Location.Accuracy.Balanced,
+    });
+
+    if (signal.aborted) {
+      throw new DOMException("Aborted", "AbortError");
+    }
+
+    return {
+      phase: "ready",
+      choice: {
+        label: "near you",
+        coordinates: {
+          lat: position.coords.latitude,
+          lon: position.coords.longitude,
+        },
+      },
+    };
+  } catch (error) {
+    if (signal.aborted || (error instanceof DOMException && error.name === "AbortError")) {
+      throw error;
+    }
+
+    return {
+      phase: "denied",
+      note: "location is being weird. pick a place.",
+    };
+  }
 }
 
 function Header({ label }: { label: string | null }) {
@@ -108,38 +142,7 @@ function Header({ label }: { label: string | null }) {
   );
 }
 
-function FallbackPicker({
-  onPick,
-}: {
-  onPick: (place: LocationChoice) => void;
-}) {
-  return (
-    <View className="gap-3 px-5">
-      <Text className="text-sm text-lnb-muted">
-        location denied. pick a launch spot.
-      </Text>
-      <View className="gap-2">
-        {FALLBACK_PLACES.map((place) => (
-          <Pressable
-            key={place.label}
-            className="border-b border-lnb-border py-4"
-            onPress={() => onPick(place)}
-          >
-            <Text className="text-base font-semibold text-lnb-text">
-              {place.label}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
-    </View>
-  );
-}
-
-function EmptyState({
-  nextOpening,
-}: {
-  nextOpening: string | null;
-}) {
+function EmptyState({ nextOpening }: { nextOpening: string | null }) {
   return (
     <View className="gap-2 px-5 py-10">
       <Text className="text-2xl font-semibold text-lnb-text">
@@ -160,7 +163,13 @@ function SpotRow({ item }: { item: SpotRowItem }) {
   const { ranked, routeId } = item;
 
   return (
-    <Link href={{ pathname: "/spot/[id]", params: { id: routeId } }} asChild>
+    <Link
+      href={{
+        pathname: "/spot/[id]",
+        params: { id: routeId, ranked: serializeRankedSpot(ranked) },
+      }}
+      asChild
+    >
       <Pressable className="border-b border-lnb-border px-5 py-4">
         <View className="gap-2">
           <View className="flex-row items-start justify-between gap-4">
@@ -173,7 +182,7 @@ function SpotRow({ item }: { item: SpotRowItem }) {
           </View>
           <View className="flex-row items-center justify-between gap-3">
             <Text
-              className={`min-w-0 flex-1 text-sm font-medium ${headlineClassName(ranked.state)}`}
+              className={`min-w-0 flex-1 text-sm font-medium ${openStateTextClass(ranked.state)}`}
             >
               {formatHeadline(ranked.state)}
             </Text>
@@ -187,81 +196,147 @@ function SpotRow({ item }: { item: SpotRowItem }) {
   );
 }
 
+function SpinnerBlock({ message }: { message: string }) {
+  return (
+    <View className="flex-row items-center gap-3 px-5 py-6">
+      <ActivityIndicator />
+      <Text className="text-sm text-lnb-muted">{message}</Text>
+    </View>
+  );
+}
+
+function RightNowBodyView({
+  body,
+  onPickPlace,
+  onRetry,
+  bottomInset,
+  renderItem,
+}: {
+  body: RightNowBody;
+  onPickPlace: (place: LocationChoice) => void;
+  onRetry: () => void;
+  bottomInset: number;
+  renderItem: (props: LegendListRenderItemProps<SpotRowItem>) => ReactElement;
+}) {
+  switch (body.kind) {
+    case "spinner":
+      return <SpinnerBlock message={body.message} />;
+    case "pick-place":
+      return (
+        <View className="gap-3 px-5">
+          <Text className="text-sm text-lnb-muted">{body.note}</Text>
+          <View className="gap-2">
+            {body.places.map((place) => (
+              <Pressable
+                key={place.label}
+                className="border-b border-lnb-border py-4"
+                onPress={() => onPickPlace(place)}
+              >
+                <Text className="text-base font-semibold text-lnb-text">
+                  {place.label}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      );
+    case "spots-loading":
+      return <SpinnerBlock message="pulling nearby spots..." />;
+    case "spots-error":
+      return (
+        <View className="gap-3 px-5 py-8">
+          <Text className="text-base font-semibold text-lnb-text">
+            overpass is slow tonight.
+          </Text>
+          <Text className="text-sm text-lnb-muted">
+            try again, or pick a launch spot.
+          </Text>
+          <Pressable
+            className="self-start border-b border-lnb-glow py-2"
+            onPress={onRetry}
+          >
+            <Text className="text-sm font-semibold text-lnb-glow">
+              try again
+            </Text>
+          </Pressable>
+          <View className="gap-2">
+            {body.places.map((place) => (
+              <Pressable
+                key={place.label}
+                className="border-b border-lnb-border py-4"
+                onPress={() => onPickPlace(place)}
+              >
+                <Text className="text-base font-semibold text-lnb-text">
+                  {place.label}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      );
+    case "spots-list":
+      return (
+        <LegendList
+          data={body.openRows}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.routeId}
+          estimatedItemSize={96}
+          recycleItems
+          ListEmptyComponent={
+            <EmptyState nextOpening={body.nextOpening} />
+          }
+          ListFooterComponent={
+            <Text className="px-5 pb-8 pt-6 text-xs text-lnb-muted">
+              est. 2015
+            </Text>
+          }
+          contentContainerStyle={{ paddingBottom: bottomInset + 12 }}
+        />
+      );
+  }
+}
+
 export default function RightNow() {
   const insets = useSafeAreaInsets();
   const now = useMinuteNow();
-  const [permissionState, setPermissionState] =
-    useState<PermissionState>("asking");
-  const [choice, setChoice] = useState<LocationChoice | null>(null);
-  const [locationNote, setLocationNote] = useState<string | null>(
-    "use your location to find what's open nearby.",
-  );
+  const [flow, setFlow] = useState<LocationFlow>({
+    phase: "prompt",
+    note: "use your location to find what's open nearby.",
+  });
 
   useEffect(() => {
-    let mounted = true;
+    const controller = new AbortController();
 
-    async function locate() {
-      setPermissionState("asking");
-      const permission = await Location.requestForegroundPermissionsAsync();
-
-      if (!mounted) {
-        return;
-      }
-
-      if (permission.status !== Location.PermissionStatus.GRANTED) {
-        setPermissionState("denied");
-        setLocationNote("location denied. pick a place.");
-        return;
-      }
-
-      setPermissionState("locating");
+    void (async () => {
+      setFlow({
+        phase: "locating",
+        note: "use your location to find what's open nearby.",
+      });
 
       try {
-        const position = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
-        });
-
-        if (!mounted) {
-          return;
-        }
-
-        setChoice({
-          label: "near you",
-          coordinates: {
-            lat: position.coords.latitude,
-            lon: position.coords.longitude,
-          },
-        });
-        setPermissionState("ready");
-        setLocationNote(null);
+        const next = await resolveLocationFlow(controller.signal);
+        setFlow(next);
       } catch {
-        if (!mounted) {
-          return;
-        }
-
-        setPermissionState("denied");
-        setLocationNote("location is being weird. pick a place.");
+        return;
       }
-    }
+    })();
 
-    locate();
-
-    return () => {
-      mounted = false;
-    };
+    return () => controller.abort();
   }, []);
 
   const queryCoordinates = useMemo(
-    () => (choice ? roundedCoordinates(choice.coordinates) : null),
-    [choice],
+    () =>
+      flow.phase === "ready"
+        ? roundedCoordinates(flow.choice.coordinates)
+        : null,
+    [flow],
   );
 
   const spotsQuery = useQuery({
-    queryKey: queryCoordinates ? spotQueryKey(queryCoordinates) : ["spots"],
-    queryFn: () =>
-      fetchSpots(
-        bboxForCoordinates(queryCoordinates ?? FALLBACK_PLACES[0].coordinates),
-      ),
+    queryKey: queryCoordinates
+      ? spotQueryKey(queryCoordinates)
+      : (["spots", "idle"] as const),
+    queryFn: () => fetchSpots(bboxForCoordinates(queryCoordinates!)),
     enabled: queryCoordinates != null,
     staleTime: 10 * 60 * 1000,
   });
@@ -274,31 +349,16 @@ export default function RightNow() {
     [now, queryCoordinates, spotsQuery.data],
   );
 
-  useEffect(() => {
-    rememberRankedSpots(ranked);
-  }, [ranked]);
-
-  const rows = useMemo<SpotRowItem[]>(
-    () =>
-      ranked.map((item) => ({
-        ranked: item,
-        routeId: routeIdForSpotId(item.spot.id),
-      })),
-    [ranked],
-  );
-
-  const openRows = useMemo(
-    () => rows.filter((item) => item.ranked.state.status === "open"),
-    [rows],
-  );
-
-  const nextOpening = useMemo(() => nextOpeningLabel(ranked), [ranked]);
-
-  const pickFallback = useCallback((place: LocationChoice) => {
-    setChoice(place);
-    setPermissionState("ready");
-    setLocationNote(null);
+  const pickPlace = useCallback((place: LocationChoice) => {
+    setFlow({ phase: "ready", choice: place });
   }, []);
+
+  const onRetry = useCallback(() => {
+    void spotsQuery.refetch();
+  }, [spotsQuery]);
+
+  const body = buildRightNowBody(flow, spotsQuery, ranked, onRetry);
+  const note = bodyNote(flow);
 
   const renderItem = useCallback(
     ({ item }: LegendListRenderItemProps<SpotRowItem>) => (
@@ -312,68 +372,19 @@ export default function RightNow() {
       className="flex-1 bg-lnb-bg"
       style={{ paddingTop: insets.top + 16 }}
     >
-      <Header label={choice?.label ?? null} />
-      {locationNote ? (
-        <Text className="px-5 pb-4 text-sm text-lnb-muted">{locationNote}</Text>
+      <Header label={headerLabel(flow)} />
+      {note ? (
+        <Text className="px-5 pb-4 text-sm text-lnb-muted">{note}</Text>
       ) : null}
-      {permissionState === "denied" && !choice ? (
-        <FallbackPicker onPick={pickFallback} />
-      ) : null}
-      {permissionState !== "denied" && !choice ? (
-        <View className="flex-row items-center gap-3 px-5 py-6">
-          <ActivityIndicator />
-          <Text className="text-sm text-lnb-muted">
-            {permissionState === "locating"
-              ? "getting your spot..."
-              : "asking for location..."}
-          </Text>
-        </View>
-      ) : null}
-      {choice ? (
+      {body ? (
         <View className="flex-1">
-          {spotsQuery.isError ? (
-            <View className="gap-3 px-5 py-8">
-              <Text className="text-base font-semibold text-lnb-text">
-                overpass is slow tonight.
-              </Text>
-              <Text className="text-sm text-lnb-muted">
-                try again, or pick a launch spot.
-              </Text>
-              <Pressable
-                className="self-start border-b border-lnb-glow py-2"
-                onPress={() => {
-                  void spotsQuery.refetch();
-                }}
-              >
-                <Text className="text-sm font-semibold text-lnb-glow">
-                  try again
-                </Text>
-              </Pressable>
-              <FallbackPicker onPick={pickFallback} />
-            </View>
-          ) : spotsQuery.isPending ? (
-            <View className="flex-row items-center gap-3 px-5 py-6">
-              <ActivityIndicator />
-              <Text className="text-sm text-lnb-muted">
-                pulling nearby spots...
-              </Text>
-            </View>
-          ) : (
-            <LegendList
-              data={openRows}
-              renderItem={renderItem}
-              keyExtractor={(item) => item.routeId}
-              estimatedItemSize={96}
-              recycleItems
-              ListEmptyComponent={<EmptyState nextOpening={nextOpening} />}
-              ListFooterComponent={
-                <Text className="px-5 pb-8 pt-6 text-xs text-lnb-muted">
-                  est. 2015
-                </Text>
-              }
-              contentContainerStyle={{ paddingBottom: insets.bottom + 12 }}
-            />
-          )}
+          <RightNowBodyView
+            body={body}
+            onPickPlace={pickPlace}
+            onRetry={onRetry}
+            bottomInset={insets.bottom}
+            renderItem={renderItem}
+          />
         </View>
       ) : null}
     </View>

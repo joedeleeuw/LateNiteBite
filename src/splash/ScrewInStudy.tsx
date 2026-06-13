@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from "react";
+import { useCallback } from "react";
 import { StyleSheet, View, useWindowDimensions } from "react-native";
 import Animated, {
   Easing,
@@ -16,6 +16,7 @@ import {
   VignetteMouse,
   VignetteTail,
 } from "@/splash/Vignette";
+import { useReanimatedLoop } from "@/splash/useReanimatedLoop";
 import { Pressable, Text } from "@/tw";
 
 const PUNCH = Easing.bezier(0.16, 1, 0.3, 1);
@@ -107,11 +108,7 @@ export function ScrewInStudy() {
     );
   }, [breath, glow, hang, rock, settle, unit]);
 
-  useEffect(() => {
-    run();
-    const loop = setInterval(run, LOOP_MS);
-    return () => clearInterval(loop);
-  }, [run]);
+  useReanimatedLoop(run, LOOP_MS);
 
   const bulbStyle = useAnimatedStyle(() => ({
     transform: [

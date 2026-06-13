@@ -8,15 +8,8 @@ export type BBox = {
   east: number;
 };
 
-const ENDPOINTS = [
-  "https://overpass-api.de/api/interpreter",
-  "https://overpass.kumi.systems/api/interpreter",
-  "https://overpass.openstreetmap.fr/api/interpreter",
-];
-
-const RETRYABLE = new Set([429, 502, 503, 504]);
+const OVERPASS_ENDPOINT = "https://overpass-api.de/api/interpreter";
 const REQUEST_TIMEOUT_MS = 35_000;
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export function buildQuery(bbox: BBox): string {
   const amenities = FOOD_AMENITIES.join("|");
@@ -70,26 +63,14 @@ const HEADERS = {
 
 export async function fetchSpots(bbox: BBox): Promise<Spot[]> {
   const query = "?data=" + encodeURIComponent(buildQuery(bbox));
-  let lastError = "no endpoints tried";
+  const res = await fetch(OVERPASS_ENDPOINT + query, {
+    headers: HEADERS,
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  });
 
-  for (const endpoint of ENDPOINTS) {
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        const res = await fetch(endpoint + query, {
-          headers: HEADERS,
-          signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-        });
-        if (res.ok) return parseElements(await res.json());
-
-        lastError = `${endpoint} -> ${res.status}`;
-        if (!RETRYABLE.has(res.status)) break;
-        await sleep(3000 * (attempt + 1));
-      } catch (err) {
-        lastError = `${endpoint} -> ${String(err)}`;
-        await sleep(1000);
-      }
-    }
+  if (!res.ok) {
+    throw new Error(`Overpass failed: ${res.status}`);
   }
 
-  throw new Error(`All Overpass endpoints failed: ${lastError}`);
+  return parseElements(await res.json());
 }

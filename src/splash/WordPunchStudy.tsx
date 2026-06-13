@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from "react";
+import { useCallback } from "react";
 import Animated, {
   Easing,
   interpolate,
@@ -9,6 +9,7 @@ import Animated, {
   withTiming,
   type SharedValue,
 } from "react-native-reanimated";
+import { useReanimatedLoop } from "@/splash/useReanimatedLoop";
 import { Pressable, Text, View } from "@/tw";
 
 const PUNCH = Easing.bezier(0.16, 1, 0.3, 1);
@@ -58,11 +59,7 @@ export function WordPunchStudy() {
     );
   }, [bite, est, late, nite]);
 
-  useEffect(() => {
-    run();
-    const loop = setInterval(run, LOOP_MS);
-    return () => clearInterval(loop);
-  }, [run]);
+  useReanimatedLoop(run, LOOP_MS);
 
   const lateStyle = usePunchStyle(late);
   const niteStyle = usePunchStyle(nite);

@@ -28,7 +28,16 @@ export type NavigationPlatform = "ios" | "android" | "web" | string;
 
 type NavigableSpot = Pick<Spot, "coordinates" | "name">;
 
-const rememberedSpots = new Map<string, RankedSpot>();
+type OpenStateWire =
+  | { status: "open"; closesAt: string | null; closesInMin: number | null }
+  | { status: "closed"; opensAt: string | null }
+  | { status: "unknown"; reason: string };
+
+type RankedSpotWire = {
+  spot: Spot;
+  distanceMi: number;
+  state: OpenStateWire;
+};
 
 function roundTo(value: number, decimals: number): number {
   const factor = 10 ** decimals;
@@ -37,6 +46,44 @@ function roundTo(value: number, decimals: number): number {
 
 function trimCoordinate(value: number): string {
   return String(roundTo(value, 6));
+}
+
+function toWireState(state: OpenState): OpenStateWire {
+  if (state.status === "open") {
+    return {
+      status: "open",
+      closesAt: state.closesAt?.toISOString() ?? null,
+      closesInMin: state.closesInMin,
+    };
+  }
+
+  if (state.status === "closed") {
+    return {
+      status: "closed",
+      opensAt: state.opensAt?.toISOString() ?? null,
+    };
+  }
+
+  return state;
+}
+
+function fromWireState(state: OpenStateWire): OpenState {
+  if (state.status === "open") {
+    return {
+      status: "open",
+      closesAt: state.closesAt ? new Date(state.closesAt) : null,
+      closesInMin: state.closesInMin,
+    };
+  }
+
+  if (state.status === "closed") {
+    return {
+      status: "closed",
+      opensAt: state.opensAt ? new Date(state.opensAt) : null,
+    };
+  }
+
+  return state;
 }
 
 export function roundedCoordinates(coordinates: Coordinates): Coordinates {
@@ -57,6 +104,10 @@ export function bboxForCoordinates(coordinates: Coordinates): BBox {
 
 export function spotQueryKey(coordinates: Coordinates): SpotQueryKey {
   return ["spots", roundedCoordinates(coordinates)];
+}
+
+export function openStateTextClass(state: OpenState): string {
+  return state.status === "open" ? "text-lnb-open" : "text-lnb-muted";
 }
 
 export function formatHeadline(state: OpenState): string {
@@ -128,18 +179,31 @@ export function routeIdForSpotId(id: string): string {
   return encodeURIComponent(id).replaceAll("%", "~");
 }
 
-export function rememberRankedSpots(ranked: RankedSpot[]): void {
-  for (const item of ranked) {
-    rememberedSpots.set(routeIdForSpotId(item.spot.id), item);
-  }
+export function serializeRankedSpot(ranked: RankedSpot): string {
+  const wire: RankedSpotWire = {
+    spot: ranked.spot,
+    distanceMi: ranked.distanceMi,
+    state: toWireState(ranked.state),
+  };
+
+  return JSON.stringify(wire);
 }
 
-export function readRememberedSpot(routeId: string | undefined): RankedSpot | null {
-  if (!routeId) {
+export function parseRankedSpotParam(raw: string | undefined): RankedSpot | null {
+  if (!raw) {
     return null;
   }
 
-  return rememberedSpots.get(routeId) ?? null;
+  try {
+    const wire = JSON.parse(raw) as RankedSpotWire;
+    return {
+      spot: wire.spot,
+      distanceMi: wire.distanceMi,
+      state: fromWireState(wire.state),
+    };
+  } catch {
+    return null;
+  }
 }
 
 export function buildNavigateUrl(
