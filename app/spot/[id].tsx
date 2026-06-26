@@ -4,6 +4,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { Linking, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ensureHttpProtocol, openExternalUrl } from "@/action-links";
+import { ChromeButton } from "@/chrome-button";
 import { fetchSpots } from "@/core/overpass";
 import { rankSpots } from "@/core/rank";
 import {
@@ -149,17 +150,14 @@ export default function SpotDetail() {
     return (
       <DetailStateShell
         action={
-          <Pressable
-            className="self-start border-b border-lnb-glow py-2"
+          <ChromeButton
             testID="lnb_retry_spot_detail_button"
             onPress={() => {
               void spotsQuery.refetch();
             }}
           >
-            <Text className="text-sm font-semibold text-lnb-glow">
-              try again
-            </Text>
-          </Pressable>
+            try again
+          </ChromeButton>
         }
         body="could not load this place."
         testID="lnb_spot_detail_error"

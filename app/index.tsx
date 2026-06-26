@@ -36,6 +36,7 @@ import {
   spotFoodDisplay,
   spotQueryKey,
 } from "@/rightNow";
+import { ChromeButton } from "@/chrome-button";
 import { BulbMark } from "@/splash/BulbMark";
 import { NightBulbScene } from "@/night-bulb-scene";
 import { SpotPhotoThumb } from "@/spot-photo";
@@ -449,8 +450,8 @@ export default function RightNow() {
         <HomeState
           action={
             <>
-              <Pressable
-                className="border-b border-[#FFB84D] py-2"
+              <ChromeButton
+                tone="secondary"
                 testID="lnb_open_settings_button"
                 onPress={() => {
                   void Linking.openSettings().catch((error) => {
@@ -458,19 +459,14 @@ export default function RightNow() {
                   });
                 }}
               >
-                <Text className="text-sm font-semibold text-[#FFB84D]">
-                  open settings
-                </Text>
-              </Pressable>
-              <Pressable
-                className="border-b border-[#FFB84D] py-2"
+                open settings
+              </ChromeButton>
+              <ChromeButton
                 testID="lnb_try_location_again_button"
                 onPress={locate}
               >
-                <Text className="text-sm font-semibold text-[#FFB84D]">
-                  try again
-                </Text>
-              </Pressable>
+                try again
+              </ChromeButton>
             </>
           }
           body="location is off."
@@ -481,17 +477,14 @@ export default function RightNow() {
       {permissionState === "error" && !coordinates ? (
         <HomeState
           action={
-            <Pressable
-              className="border-b border-[#FFB84D] py-2"
+            <ChromeButton
               testID="lnb_try_location_again_button"
               onPress={() => {
                 locate();
               }}
             >
-              <Text className="text-sm font-semibold text-[#FFB84D]">
-                try location again
-              </Text>
-            </Pressable>
+              try location again
+            </ChromeButton>
           }
           body="location failed."
           title="location unavailable"
@@ -509,17 +502,14 @@ export default function RightNow() {
           {spotsQuery.isError ? (
             <HomeState
               action={
-                <Pressable
-                  className="border-b border-[#FFB84D] py-2"
+                <ChromeButton
                   testID="lnb_retry_spots_button"
                   onPress={() => {
                     void spotsQuery.refetch();
                   }}
                 >
-                  <Text className="text-sm font-semibold text-[#FFB84D]">
-                    try again
-                  </Text>
-                </Pressable>
+                  try again
+                </ChromeButton>
               }
               body="open-place lookup failed."
               testID="lnb_spots_error"
@@ -538,16 +528,14 @@ export default function RightNow() {
                   <Text className="text-sm text-[#B2BED0]" selectable>
                     photos unavailable
                   </Text>
-                  <Pressable
-                    className="border-b border-[#FFB84D] py-2"
+                  <ChromeButton
+                    tone="secondary"
                     onPress={() => {
                       void spotPhotosQuery.refetch();
                     }}
                   >
-                    <Text className="text-sm font-semibold text-[#FFB84D]">
-                      try again
-                    </Text>
-                  </Pressable>
+                    try again
+                  </ChromeButton>
                 </View>
               ) : null}
               <MeasuredLegendList

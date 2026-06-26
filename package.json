@@ -4,17 +4,6 @@
   "private": true,
   "license": "MIT",
   "main": "expo-router/entry",
-  "expo": {
-    "install": {
-      "exclude": [
-        "react-native-reanimated",
-        "react-native-gesture-handler",
-        "react-native-safe-area-context",
-        "react-native-worklets",
-        "react-native-svg"
-      ]
-    }
-  },
   "scripts": {
     "start": "expo start",
     "web": "expo start --web",
@@ -42,6 +31,7 @@
     "@tanstack/react-query": "catalog:",
     "expo": "catalog:expo56",
     "expo-constants": "catalog:expo56",
+    "expo-glass-effect": "catalog:expo56",
     "expo-haptics": "catalog:expo56",
     "expo-image": "catalog:expo56",
     "expo-linking": "catalog:expo56",
@@ -54,14 +44,14 @@
     "opening_hours": "catalog:",
     "react": "catalog:react19",
     "react-dom": "catalog:react19",
-    "react-native": "catalog:",
-    "react-native-gesture-handler": "catalog:",
-    "react-native-reanimated": "catalog:",
-    "react-native-safe-area-context": "catalog:",
-    "react-native-screens": "catalog:",
-    "react-native-svg": "catalog:",
-    "react-native-web": "catalog:",
-    "react-native-worklets": "catalog:",
+    "react-native": "catalog:expo56",
+    "react-native-gesture-handler": "catalog:expo56",
+    "react-native-reanimated": "catalog:expo56",
+    "react-native-safe-area-context": "catalog:expo56",
+    "react-native-screens": "catalog:expo56",
+    "react-native-svg": "catalog:expo56",
+    "react-native-web": "catalog:expo56",
+    "react-native-worklets": "catalog:expo56",
     "tailwindcss": "catalog:",
     "uniwind": "catalog:",
     "zod": "catalog:"

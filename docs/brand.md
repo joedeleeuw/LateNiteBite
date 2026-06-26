@@ -41,9 +41,9 @@ A two-layer world:
 
 Two dialects, one night:
 
-- **iOS — Liquid Glass** (iOS 26). `expo-glass-effect` `GlassView` guarded by `isGlassEffectAPIAvailable()` → `BlurView` on older iOS. Never `opacity < 1` on glass; no scrollables inside glass.
+- **iOS — Liquid Glass** (iOS 26). Chrome uses `expo-glass-effect` `GlassView` directly. Do not add app-level `BlurView` or `View` capability fallbacks around glass chrome. Never `opacity < 1` on glass; no scrollables inside glass.
 - **Android — Material 3 Expressive.** No fake glass: tonal translucent `lnb-surface` chrome, M3 shapes and ripples, springy Expressive motion (the PUNCH family maps to spring physics), system navigation bar via native tabs, edge-to-edge as Android 16 expects. Dynamic color stays off in v1 — the night is the brand; revisit as a Phase 2 accent option.
-- **Web / fallback** — tinted translucent `lnb-surface`. Reduce-transparency on → solid surfaces, everywhere.
+- **Web** — tinted translucent `lnb-surface`. Reduce-transparency on → solid surfaces, everywhere.
 
 Shared discipline: related controls share one chrome cluster; unrelated groups get space, not borders; system defaults first, tuned lightly.
 

@@ -1,5 +1,6 @@
 import type { ComponentProps } from "react";
 import { ActivityIndicator } from "react-native";
+import { ChromeButton } from "@/chrome-button";
 import { NightBulbScene } from "@/night-bulb-scene";
 import { spotPhotoAttributionText, type SpotPhoto } from "@/spot-photos";
 import { Image, Pressable, Text, View } from "@/tw";
@@ -102,12 +103,9 @@ export function SpotPhotoHero({
           <Text className="text-base font-semibold text-[#ECF0F7]" selectable>
             photo lookup failed
           </Text>
-          <Pressable
-            className="min-h-10 self-start justify-center rounded-full bg-[#FFB84D] px-4 py-2"
-            onPress={onRetry}
-          >
-            <Text className="text-sm font-semibold text-[#0A101C]">try again</Text>
-          </Pressable>
+          <View className="self-start">
+            <ChromeButton onPress={onRetry}>try again</ChromeButton>
+          </View>
         </View>
       </View>
     );
