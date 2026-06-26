@@ -4,8 +4,7 @@
     "strict": true,
     "types": ["uniwind/types"],
     "paths": {
-      "@/*": ["./src/*"],
-      "@/app/*": ["./app/*"]
+      "@/*": ["./src/*"]
     }
   },
   "include": [

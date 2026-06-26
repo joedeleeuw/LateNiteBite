@@ -22,8 +22,6 @@ env:
     id: "lnb_spot_list"
 - assertNotVisible:
     id: "lnb_location_required"
-- assertNotVisible:
-    id: "lnb_no_fallback_copy"
 - tapOn:
     id: "lnb_spot_row"
 - extendedWaitUntil:

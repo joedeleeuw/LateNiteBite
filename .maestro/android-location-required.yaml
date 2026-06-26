@@ -20,13 +20,11 @@ env:
       - tapOn:
           id: "com.android.permissioncontroller:id/permission_deny_button"
 - extendedWaitUntil:
-    visible:
-      id: "lnb_location_required_title"
+    visible: "location required"
     timeout: 15000
 - assertVisible:
     id: "lnb_location_required"
-- assertVisible:
-    id: "lnb_no_fallback_copy"
+- assertVisible: "location required"
 - assertVisible:
     id: "lnb_open_settings_button"
 - assertVisible:

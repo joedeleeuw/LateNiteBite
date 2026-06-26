@@ -2,9 +2,26 @@ import { LegendList, type LegendListRenderItemProps } from "@legendapp/list";
 import { useQuery } from "@tanstack/react-query";
 import * as Location from "expo-location";
 import { Link } from "expo-router";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Linking } from "react-native";
+import {
+  forwardRef,
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentRef,
+  type ReactNode,
+} from "react";
+import {
+  ActivityIndicator,
+  Linking,
+  ScrollView as RNScrollView,
+  type LayoutChangeEvent,
+  type ScrollViewProps,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import type { Coordinates } from "@/core/geo";
 import { fetchSpots } from "@/core/overpass";
 import { rankSpots, type RankedSpot } from "@/core/rank";
 import {
@@ -14,26 +31,24 @@ import {
   formatHeadline,
   nextOpeningLabel,
   requestLocationPermission,
-  routeIdForSpotId,
   roundedCoordinates,
+  rightNowRows,
+  spotFoodDisplay,
   spotQueryKey,
 } from "@/rightNow";
 import { BulbMark } from "@/splash/BulbMark";
+import { NightBulbScene } from "@/night-bulb-scene";
+import { SpotPhotoThumb } from "@/spot-photo";
+import {
+  fetchSpotPhotos,
+  MAX_SPOT_PHOTO_LOOKUPS,
+  spotPhotoQueryKey,
+  type SpotPhoto,
+} from "@/spot-photos";
 import { Pressable, Text, View } from "@/tw";
 import { useMinuteNow } from "@/use-minute-now";
 
-type LocationChoice = {
-  label: string;
-  coordinates: { lat: number; lon: number };
-};
-
-type PermissionState = "asking" | "locating" | "denied" | "error" | "ready";
-
-type SpotRowItem = {
-  ranked: RankedSpot;
-  routeId: string;
-  coordinates: LocationChoice["coordinates"];
-};
+type RightNowRow = ReturnType<typeof rightNowRows>[number];
 
 function headlineClassName(state: RankedSpot["state"]): string {
   if (state.status === "open") {
@@ -41,38 +56,41 @@ function headlineClassName(state: RankedSpot["state"]): string {
   }
 
   if (state.status === "closed") {
-    return "text-lnb-muted";
+    return "text-lnb-closed";
   }
 
   return "text-lnb-muted";
 }
 
-function Header({ label }: { label: string | null }) {
+function Header() {
   return (
-    <View className="gap-5 px-5 pb-4" testID="lnb_home_header">
-      <View className="flex-row items-center justify-between gap-4">
-        <View className="flex-row items-center gap-3">
-          <BulbMark width={42} height={63} />
-          <View>
-            <Text className="text-xl font-bold leading-5 text-lnb-text">
-              late
-            </Text>
-            <Text className="text-xl font-bold leading-5 text-lnb-glow">
-              nite
-            </Text>
-            <Text className="text-xl font-bold leading-5 text-lnb-text">
-              bite
-            </Text>
-          </View>
-        </View>
-        {label ? (
-          <Text className="max-w-40 text-right text-xs text-lnb-muted">
-            {label}
+    <View
+      className="w-full max-w-[720px] self-center px-5 pb-5"
+      testID="lnb_home_header"
+    >
+      <View className="flex-row items-center gap-3 self-start">
+        <BulbMark width={34} height={51} />
+        <View className="flex-row items-baseline gap-1">
+          <Text className="text-[22px] font-bold leading-7 text-[#F2E9DA]">
+            late
           </Text>
-        ) : null}
+          <Text className="text-[22px] font-bold leading-7 text-[#FFB84D]">
+            nite
+          </Text>
+          <Text className="text-[22px] font-bold leading-7 text-[#F2E9DA]">
+            bite
+          </Text>
+        </View>
       </View>
-      <Text className="text-2xl font-semibold leading-8 text-lnb-text">
-        open right now
+    </View>
+  );
+}
+
+function SectionHeader() {
+  return (
+    <View className="w-full max-w-[720px] self-center px-5 pb-4">
+      <Text className="text-2xl font-semibold leading-8 text-[#ECF0F7]">
+        open
       </Text>
     </View>
   );
@@ -84,23 +102,69 @@ function EmptyState({
   nextOpening: string | null;
 }) {
   return (
-    <View className="gap-2 px-5 py-10">
-      <Text className="text-2xl font-semibold text-lnb-text">
-        {"nothing's open. rough."}
+    <View className="w-full max-w-[720px] self-center gap-2 px-5 py-10">
+      <Text className="text-2xl font-semibold text-[#ECF0F7]">
+        nothing open
       </Text>
       {nextOpening ? (
-        <Text className="text-sm text-lnb-muted">{nextOpening}</Text>
+        <Text className="text-sm text-[#B2BED0]">{nextOpening}</Text>
       ) : (
-        <Text className="text-sm text-lnb-muted">
-          nothing opening soon either.
-        </Text>
+        <Text className="text-sm text-[#B2BED0]">try again later.</Text>
       )}
     </View>
   );
 }
 
-function SpotRow({ item }: { item: SpotRowItem }) {
+function HomeState({
+  action,
+  body,
+  loading = false,
+  testID,
+  title,
+}: {
+  action?: ReactNode;
+  body?: string;
+  loading?: boolean;
+  testID?: string;
+  title: string;
+}) {
+  return (
+    <View
+      className="w-full max-w-[720px] flex-1 self-center px-5 py-6"
+      testID={testID}
+    >
+      <View className="h-72 max-w-[430px] overflow-hidden rounded-[30px] border border-[#F2E9DA]/15 bg-[#0A101C]">
+        <NightBulbScene mouse />
+        <View className="absolute bottom-5 left-5 right-5 gap-3 rounded-[20px] bg-[#07101D]/82 px-4 py-4">
+          <View className="flex-row items-center gap-3">
+            {loading ? <ActivityIndicator color="#FFB84D" /> : null}
+            <Text className="text-xl font-semibold text-[#ECF0F7]" selectable>
+              {title}
+            </Text>
+          </View>
+          {body ? (
+            <Text className="text-sm leading-5 text-[#B2BED0]" selectable>
+              {body}
+            </Text>
+          ) : null}
+          {action ? <View className="flex-row flex-wrap gap-x-5 gap-y-2">{action}</View> : null}
+        </View>
+      </View>
+    </View>
+  );
+}
+
+const SpotRow = memo(function SpotRow({
+  item,
+  loadingPhoto,
+  photo,
+}: {
+  item: RightNowRow;
+  loadingPhoto: boolean;
+  photo: SpotPhoto | null;
+}) {
   const { ranked, routeId } = item;
+  const food = spotFoodDisplay(ranked.spot);
 
   return (
     <Link
@@ -115,31 +179,115 @@ function SpotRow({ item }: { item: SpotRowItem }) {
       asChild
     >
       <Pressable
-        className="border-b border-lnb-border px-5 py-4"
+        className="w-full max-w-[720px] self-center px-5 py-2"
         testID="lnb_spot_row"
       >
-        <View className="gap-2">
-          <View className="flex-row items-start justify-between gap-4">
-            <Text className="min-w-0 flex-1 text-lg font-semibold text-lnb-text">
-              {ranked.spot.name.toLowerCase()}
-            </Text>
-            <Text className="text-right text-sm tabular-nums text-lnb-text-2">
-              {formatDistance(ranked.distanceMi)}
-            </Text>
-          </View>
-          <View className="flex-row items-center justify-between gap-3">
+        <View
+          className="flex-row gap-3 overflow-hidden rounded-[26px] border border-[#F2E9DA]/15 bg-[#111929]/92 p-3"
+          style={{
+            boxShadow:
+              "inset 0 1px 0 rgba(242, 233, 218, 0.13), 0 14px 34px rgba(0, 0, 0, 0.28)",
+          }}
+        >
+          <SpotPhotoThumb loading={loadingPhoto} photo={photo} />
+          <View className="min-w-0 flex-1 gap-2">
+            <View className="flex-row items-start justify-between gap-4">
+              <Text className="min-w-0 flex-1 text-lg font-semibold text-[#ECF0F7]">
+                {ranked.spot.name.toLowerCase()}
+              </Text>
+              <Text className="text-right text-sm tabular-nums text-[#B2BED0]">
+                {formatDistance(ranked.distanceMi)}
+              </Text>
+            </View>
             <Text
-              className={`min-w-0 flex-1 text-sm font-medium ${headlineClassName(ranked.state)}`}
+              className={`text-sm font-medium ${headlineClassName(ranked.state)}`}
             >
               {formatHeadline(ranked.state)}
             </Text>
-            <Text className="text-xs text-lnb-muted">
-              {formatAmenity(ranked.spot)}
-            </Text>
+            <View className="flex-row items-center justify-between gap-3">
+              <Text className="min-w-0 flex-1 text-xs text-[#B2BED0]">
+                {food.text}
+              </Text>
+              {food.label === "cuisine" ? (
+                <Text className="text-xs text-[#78849A]">
+                  {formatAmenity(ranked.spot.amenity)}
+                </Text>
+              ) : null}
+            </View>
           </View>
         </View>
       </Pressable>
     </Link>
+  );
+});
+
+const PositiveLayoutScrollView = forwardRef<
+  ComponentRef<typeof RNScrollView>,
+  ScrollViewProps
+>(function PositiveLayoutScrollView({ onLayout, ...props }, ref) {
+  const onPositiveLayout = useCallback(
+    (event: LayoutChangeEvent) => {
+      const { height, width } = event.nativeEvent.layout;
+      if (height > 0 || width > 0) {
+        onLayout?.(event);
+      }
+    },
+    [onLayout],
+  );
+
+  return <RNScrollView {...props} onLayout={onPositiveLayout} ref={ref} />;
+});
+
+function renderPositiveLayoutScrollComponent(props: ScrollViewProps) {
+  return <PositiveLayoutScrollView {...props} />;
+}
+
+function MeasuredLegendList({
+  dataUpdatedAt,
+  insetsBottom,
+  nextOpening,
+  photoStateKey,
+  renderItem,
+  rows,
+}: {
+  dataUpdatedAt: number;
+  insetsBottom: number;
+  nextOpening: string | null;
+  photoStateKey: string;
+  renderItem: (props: LegendListRenderItemProps<RightNowRow>) => ReactNode;
+  rows: RightNowRow[];
+}) {
+  const [height, setHeight] = useState(0);
+  const onLayout = useCallback((event: LayoutChangeEvent) => {
+    const nextHeight = event.nativeEvent.layout.height;
+    if (nextHeight > 0) {
+      setHeight(nextHeight);
+    }
+  }, []);
+
+  return (
+    <View className="flex-1" onLayout={onLayout} style={{ minHeight: 1 }}>
+      {height > 0 ? (
+        <LegendList
+          data={rows}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.routeId}
+          extraData={`${dataUpdatedAt}:${photoStateKey}`}
+          estimatedItemSize={128}
+          style={{ height, minHeight: height }}
+          recycleItems
+          renderScrollComponent={renderPositiveLayoutScrollComponent}
+          testID="lnb_spot_list"
+          ListEmptyComponent={<EmptyState nextOpening={nextOpening} />}
+          ListFooterComponent={
+            <View className="w-full max-w-[720px] self-center px-5 pb-8 pt-6">
+              <Text className="text-xs text-[#78849A]">est. 2015</Text>
+            </View>
+          }
+          contentContainerStyle={{ paddingBottom: insetsBottom + 12, paddingTop: 2 }}
+        />
+      ) : null}
+    </View>
   );
 }
 
@@ -147,11 +295,8 @@ export default function RightNow() {
   const insets = useSafeAreaInsets();
   const now = useMinuteNow();
   const [permissionState, setPermissionState] =
-    useState<PermissionState>("asking");
-  const [choice, setChoice] = useState<LocationChoice | null>(null);
-  const [locationNote, setLocationNote] = useState<string | null>(
-    "use your location to find what's open nearby.",
-  );
+    useState<"asking" | "locating" | "denied" | "error" | "ready">("asking");
+  const [coordinates, setCoordinates] = useState<Coordinates | null>(null);
   const mountedRef = useRef(true);
   const locationRequestIdRef = useRef(0);
 
@@ -170,7 +315,7 @@ export default function RightNow() {
       mountedRef.current && locationRequestIdRef.current === requestId;
 
     async function run() {
-      setChoice(null);
+      setCoordinates(null);
       setPermissionState("asking");
       const permission = await requestLocationPermission(
         Location.requestForegroundPermissionsAsync,
@@ -184,13 +329,11 @@ export default function RightNow() {
       if (permission.type === "error") {
         console.error("Location permission request failed:", permission.error);
         setPermissionState("error");
-        setLocationNote("location failed. try again.");
         return;
       }
 
       if (permission.type === "denied") {
         setPermissionState("denied");
-        setLocationNote("location permission is required.");
         return;
       }
 
@@ -205,15 +348,11 @@ export default function RightNow() {
           return;
         }
 
-        setChoice({
-          label: "near you",
-          coordinates: {
-            lat: position.coords.latitude,
-            lon: position.coords.longitude,
-          },
+        setCoordinates({
+          lat: position.coords.latitude,
+          lon: position.coords.longitude,
         });
         setPermissionState("ready");
-        setLocationNote(null);
       } catch (error) {
         if (!isCurrentRequest()) {
           return;
@@ -221,7 +360,6 @@ export default function RightNow() {
 
         console.error("Location lookup failed after permission was granted:", error);
         setPermissionState("error");
-        setLocationNote("location failed. try again.");
       }
     }
 
@@ -231,8 +369,8 @@ export default function RightNow() {
   useEffect(() => locate(), [locate]);
 
   const queryCoordinates = useMemo(
-    () => (choice ? roundedCoordinates(choice.coordinates) : null),
-    [choice],
+    () => (coordinates ? roundedCoordinates(coordinates) : null),
+    [coordinates],
   );
 
   const spotsQuery = useQuery({
@@ -256,160 +394,171 @@ export default function RightNow() {
     [now, queryCoordinates, spotsQuery.data],
   );
 
-  const rows = useMemo<SpotRowItem[]>(
-    () =>
-      queryCoordinates
-        ? ranked.map((item) => ({
-            ranked: item,
-            routeId: routeIdForSpotId(item.spot.id),
-            coordinates: queryCoordinates,
-          }))
-        : [],
+  const rows = useMemo(
+    () => (queryCoordinates ? rightNowRows(ranked, queryCoordinates) : []),
     [queryCoordinates, ranked],
   );
 
-  const openRows = useMemo(
-    () => rows.filter((item) => item.ranked.state.status === "open"),
+  const nextOpening = useMemo(() => nextOpeningLabel(ranked), [ranked]);
+  const spotsForPhotos = useMemo(
+    () =>
+      rows
+        .slice(0, MAX_SPOT_PHOTO_LOOKUPS)
+        .map((item) => item.ranked.spot),
     [rows],
   );
-
-  const nextOpening = useMemo(() => nextOpeningLabel(ranked), [ranked]);
+  const spotPhotosQuery = useQuery({
+    queryKey: spotsForPhotos.length
+      ? spotPhotoQueryKey(spotsForPhotos)
+      : ["spot-photos"],
+    queryFn: () => fetchSpotPhotos(spotsForPhotos),
+    enabled: spotsForPhotos.length > 0,
+    retry: false,
+    staleTime: 30 * 60 * 1000,
+  });
+  const photoBySpotId = useMemo(() => {
+    const photos = new Map<string, SpotPhoto>();
+    for (const result of spotPhotosQuery.data ?? []) {
+      if (result.photo) {
+        photos.set(result.spotId, result.photo);
+      }
+    }
+    return photos;
+  }, [spotPhotosQuery.data]);
 
   const renderItem = useCallback(
-    ({ item }: LegendListRenderItemProps<SpotRowItem>) => (
-      <SpotRow item={item} />
+    ({ item }: LegendListRenderItemProps<RightNowRow>) => (
+      <SpotRow
+        item={item}
+        loadingPhoto={spotPhotosQuery.isFetching}
+        photo={photoBySpotId.get(item.ranked.spot.id) ?? null}
+      />
     ),
-    [],
+    [photoBySpotId, spotPhotosQuery.isFetching],
   );
 
   return (
     <View
-      className="flex-1 bg-lnb-bg"
-      style={{ paddingTop: insets.top + 16 }}
+      className="flex-1"
+      style={{ backgroundColor: "#0A101C", paddingTop: insets.top + 16 }}
       testID="lnb_home_screen"
     >
-      <Header label={choice?.label ?? null} />
-      {locationNote ? (
-        <Text
-          className="px-5 pb-4 text-sm text-lnb-muted"
-          testID="lnb_location_note"
-        >
-          {locationNote}
-        </Text>
-      ) : null}
-      {permissionState === "denied" && !choice ? (
-        <View className="gap-3 px-5" testID="lnb_location_required">
-          <Text
-            className="text-base font-semibold text-lnb-text"
-            testID="lnb_location_required_title"
-          >
-            enable location to continue.
-          </Text>
-          <Text className="text-sm text-lnb-muted" testID="lnb_no_fallback_copy">
-            LateNiteBite does not use canned launch places.
-          </Text>
-          <View className="flex-row gap-5">
-            <Pressable
-              className="border-b border-lnb-glow py-2"
-              testID="lnb_open_settings_button"
-              onPress={() => {
-                void Linking.openSettings().catch((error) => {
-                  console.error("Failed to open settings:", error);
-                });
-              }}
-            >
-              <Text className="text-sm font-semibold text-lnb-glow">
-                open settings
-              </Text>
-            </Pressable>
-            <Pressable
-              className="border-b border-lnb-glow py-2"
-              testID="lnb_try_location_again_button"
-              onPress={locate}
-            >
-              <Text className="text-sm font-semibold text-lnb-glow">
-                try again
-              </Text>
-            </Pressable>
-          </View>
-        </View>
-      ) : null}
-      {permissionState === "error" && !choice ? (
-        <View className="px-5">
-          <Pressable
-            className="self-start border-b border-lnb-glow py-2"
-            testID="lnb_try_location_again_button"
-            onPress={() => {
-              locate();
-            }}
-          >
-            <Text className="text-sm font-semibold text-lnb-glow">
-              try location again
-            </Text>
-          </Pressable>
-        </View>
-      ) : null}
-      {permissionState !== "denied" && permissionState !== "error" && !choice ? (
-        <View
-          className="flex-row items-center gap-3 px-5 py-6"
-          testID="lnb_location_loading"
-        >
-          <ActivityIndicator />
-          <Text className="text-sm text-lnb-muted">
-            {permissionState === "locating"
-              ? "getting your spot..."
-              : "asking for location..."}
-          </Text>
-        </View>
-      ) : null}
-      {choice ? (
-        <View className="flex-1">
-          {spotsQuery.isError ? (
-            <View className="gap-3 px-5 py-8" testID="lnb_spots_error">
-              <Text className="text-base font-semibold text-lnb-text">
-                overpass is slow tonight.
-              </Text>
-              <Text className="text-sm text-lnb-muted">
-                try again in a minute.
-              </Text>
+      <Header />
+      <SectionHeader />
+      {permissionState === "denied" && !coordinates ? (
+        <HomeState
+          action={
+            <>
               <Pressable
-                className="self-start border-b border-lnb-glow py-2"
-                testID="lnb_retry_spots_button"
+                className="border-b border-[#FFB84D] py-2"
+                testID="lnb_open_settings_button"
                 onPress={() => {
-                  void spotsQuery.refetch();
+                  void Linking.openSettings().catch((error) => {
+                    console.error("Failed to open settings:", error);
+                  });
                 }}
               >
-                <Text className="text-sm font-semibold text-lnb-glow">
+                <Text className="text-sm font-semibold text-[#FFB84D]">
+                  open settings
+                </Text>
+              </Pressable>
+              <Pressable
+                className="border-b border-[#FFB84D] py-2"
+                testID="lnb_try_location_again_button"
+                onPress={locate}
+              >
+                <Text className="text-sm font-semibold text-[#FFB84D]">
                   try again
                 </Text>
               </Pressable>
-            </View>
-          ) : spotsQuery.isPending ? (
-            <View
-              className="flex-row items-center gap-3 px-5 py-6"
-              testID="lnb_spots_loading"
+            </>
+          }
+          body="location is off."
+          testID="lnb_location_required"
+          title="location required"
+        />
+      ) : null}
+      {permissionState === "error" && !coordinates ? (
+        <HomeState
+          action={
+            <Pressable
+              className="border-b border-[#FFB84D] py-2"
+              testID="lnb_try_location_again_button"
+              onPress={() => {
+                locate();
+              }}
             >
-              <ActivityIndicator />
-              <Text className="text-sm text-lnb-muted">
-                pulling nearby spots...
+              <Text className="text-sm font-semibold text-[#FFB84D]">
+                try location again
               </Text>
-            </View>
-          ) : (
-            <LegendList
-              data={openRows}
-              renderItem={renderItem}
-              keyExtractor={(item) => item.routeId}
-              estimatedItemSize={96}
-              recycleItems
-              testID="lnb_spot_list"
-              ListEmptyComponent={<EmptyState nextOpening={nextOpening} />}
-              ListFooterComponent={
-                <Text className="px-5 pb-8 pt-6 text-xs text-lnb-muted">
-                  est. 2015
-                </Text>
+            </Pressable>
+          }
+          body="location failed."
+          title="location unavailable"
+        />
+      ) : null}
+      {permissionState !== "denied" && permissionState !== "error" && !coordinates ? (
+        <HomeState
+          loading
+          testID="lnb_location_loading"
+          title={permissionState === "locating" ? "locating" : "location"}
+        />
+      ) : null}
+      {coordinates ? (
+        <View className="flex-1" style={{ minHeight: 1 }}>
+          {spotsQuery.isError ? (
+            <HomeState
+              action={
+                <Pressable
+                  className="border-b border-[#FFB84D] py-2"
+                  testID="lnb_retry_spots_button"
+                  onPress={() => {
+                    void spotsQuery.refetch();
+                  }}
+                >
+                  <Text className="text-sm font-semibold text-[#FFB84D]">
+                    try again
+                  </Text>
+                </Pressable>
               }
-              contentContainerStyle={{ paddingBottom: insets.bottom + 12 }}
+              body="open-place lookup failed."
+              testID="lnb_spots_error"
+              title="spots unavailable"
             />
+          ) : spotsQuery.isPending ? (
+            <HomeState
+              loading
+              testID="lnb_spots_loading"
+              title="checking open spots"
+            />
+          ) : (
+            <View className="flex-1" style={{ minHeight: 1 }}>
+              {spotPhotosQuery.isError ? (
+                <View className="w-full max-w-[720px] flex-row items-center justify-between gap-4 self-center px-5 pb-3">
+                  <Text className="text-sm text-[#B2BED0]" selectable>
+                    photos unavailable
+                  </Text>
+                  <Pressable
+                    className="border-b border-[#FFB84D] py-2"
+                    onPress={() => {
+                      void spotPhotosQuery.refetch();
+                    }}
+                  >
+                    <Text className="text-sm font-semibold text-[#FFB84D]">
+                      try again
+                    </Text>
+                  </Pressable>
+                </View>
+              ) : null}
+              <MeasuredLegendList
+                dataUpdatedAt={spotPhotosQuery.dataUpdatedAt}
+                insetsBottom={insets.bottom}
+                nextOpening={nextOpening}
+                photoStateKey={spotPhotosQuery.status}
+                renderItem={renderItem}
+                rows={rows}
+              />
+            </View>
           )}
         </View>
       ) : null}

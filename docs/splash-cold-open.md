@@ -108,20 +108,15 @@ The vignette is a **picture within a picture** — a small world, then an animat
 - Reference renders: /tmp lnb-scene v1→v3 study (2026-06-09); v3 staging approved-pending-Joe.
 - Open question for Joe: the app icon still uses the upright isolated mark (reads well at thumbnail) — keep, or re-render from the hanging vignette?
 
-Study-screen law (learned the hard way): demo screens **loop** (play, hold ~1s, replay) and render large; a one-shot 1.5s beat that ends in stillness reads as "no animation" to any human who blinks.
+## Archived motion-study notes
 
-## Screw-in beat — study status
-
-Lives at `src/splash/ScrewInStudy.tsx`, dev route `/study`, tap to replay. Design
-loop = web export + playwright contact sheet (deterministic t₀ via click,
-`/tmp/lnb-capture.cjs`); sign-off loop = agent-device frame evidence on a real
-build (pending first dev build); flow loop = maestro, arrives with Phase 1.
+The earlier study routes and source harnesses were removed from the app. These notes remain as historical critique for the eventual shipped cold open; do not reintroduce study pages under `app/`.
 
 - **v1** failed review: pivoted at view center (read as pendulum wobble, not screwing); no anticipation; glow faded instead of flicking.
 - **v2** passed the static contact sheet: thread-block pivot (translate-rotate-translate), 90ms anticipation lift, incandescent 2-pulse flicker (0 → 0.7 → 0.25 → 1), PUNCH settle at 990ms.
 - **v3 next:** mouse on its own layer with rotational lag so it reads asleep-and-limp while the bulb turns; sheen held screen-space during rotation; live-rhythm judgment (flicker timing) needs motion, not stills.
-- **v4 (staging correction applied):** rebuilt as the hanging vignette (`src/splash/Vignette.tsx` layers + rebuilt study): bulb rises into the ceiling socket, thread bands tuck behind the cup, mouse static on the rafter, loops every 3.8s + tap-to-replay, viewport-scaled. Verified agentically on the dev server with frame evidence.
-- **v5 punch list:** tail thread-coil is static while the bulb rises — registration drifts mid-beat; move the coil into the bulb layer (it rides the threads) or key the tail. Mouse ear/eye placement reads slightly muddled at size — one pass on the face. Idle life after settle: mouse breathing, glow micro-flicker.
+- **v4 (staging correction applied):** hanging vignette direction: bulb rises into the ceiling socket, thread bands tuck behind the cup, mouse static on the rafter, viewport-scaled.
+- **v5 punch list:** tail thread-coil registration drifts mid-beat; mouse ear/eye placement reads slightly muddled at size; idle life after settle needs mouse breathing and glow micro-flicker.
 
 ## Mark punch list (v4, `src/splash/BulbMark.tsx`)
 

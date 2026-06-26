@@ -26,10 +26,10 @@ Lowercase-casual, short, concrete, honest.
 
 | yes | no |
 |---|---|
-| open right now | Discover amazing late-night eats! |
+| open | Discover amazing late-night eats! |
 | closes in 38m | Hurry! Closing soon! |
-| hours unknown — trust your gut or call | (pretending to know) |
-| nothing's open. rough. | No results found :( |
+| hours unknown | (pretending to know) |
+| nothing open | No results found :( |
 | est. 2015 | ★ CELEBRATING 11 YEARS ★ |
 
 ## Visual language: the night, behind glass
@@ -47,9 +47,11 @@ Two dialects, one night:
 
 Shared discipline: related controls share one chrome cluster; unrelated groups get space, not borders; system defaults first, tuned lightly.
 
-### Spot imagery: illustrated, never photographic (v1 law)
+### Spot imagery: real source photos, no fake fallback
 
-No photo APIs exist that we can own at $0 (OSM has none; Google/Yelp forbid caching). The constraint is the brand: **amenity glyphs drawn in the lockup's monoline-rounded DNA** (pizza slice, mug, pint, bowl — amber on navy) carry every spot's identity. Photos enter only if the Phase 3 community brings them.
+People need to see food. v1 resolves venue photos through the LNB photo API, with source attribution visible wherever the image appears. If no source photo is available, the UI renders no fake venue image. Never replace a missing restaurant photo with generic food stock or generated art in the same slot.
+
+Provider credentials stay server-side. Source content follows each provider's retention rules. The durable app model is provider, image URL, attribution, source URL, and expiry when the provider requires one.
 
 ### The card stack (Joe's direction, verbatim)
 

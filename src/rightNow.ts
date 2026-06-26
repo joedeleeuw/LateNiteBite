@@ -1,28 +1,29 @@
-import type { BBox } from "@/core/overpass";
-import type { Coordinates } from "@/core/geo";
-import type { OpenState } from "@/core/openNow";
-import type { RankedSpot } from "@/core/rank";
-import type { Spot } from "@/core/spot";
+import type { UnknownOutputParams } from "expo-router";
+import type { PlatformOSType } from "react-native";
+import { z } from "zod";
+import { CoordinatesSchema, type Coordinates } from "./core/geo";
+import type { OpenState } from "./core/openNow";
+import type { BBox } from "./core/overpass";
+import type { RankedSpot } from "./core/rank";
+import type { Spot } from "./core/spot";
 
 const LAT_DELTA = 0.02;
 const LON_DELTA = 0.025;
 const QUERY_COORD_DECIMALS = 4;
 const FEET_PER_MILE = 5280;
 
-export type SpotQueryKey = ["spots", Coordinates];
-
-export type NavigationPlatform = "ios" | "android" | "web" | string;
-
-export type LocationPermissionRequestResult = {
-  status: string;
-};
-
-export type LocationPermissionResult =
-  | { type: "granted" }
-  | { type: "denied" }
-  | { type: "error"; error: unknown };
-
-type NavigableSpot = Pick<Spot, "coordinates" | "name">;
+const NavigationPlatformSchema = z.enum(["ios", "android", "web"]);
+const RouteParamValueSchema = z.union([
+  z.string().min(1),
+  z.tuple([z.string().min(1)]),
+]);
+const RouteCoordinateParamsSchema = z.object({
+  lat: RouteParamValueSchema,
+  lon: RouteParamValueSchema,
+});
+const SpotDetailRouteParamsSchema = RouteCoordinateParamsSchema.extend({
+  id: RouteParamValueSchema,
+});
 
 function roundTo(value: number, decimals: number): number {
   const factor = 10 ** decimals;
@@ -49,21 +50,21 @@ export function bboxForCoordinates(coordinates: Coordinates): BBox {
   };
 }
 
-export function spotQueryKey(coordinates: Coordinates): SpotQueryKey {
-  return ["spots", roundedCoordinates(coordinates)];
+export function spotQueryKey(coordinates: Coordinates) {
+  return ["spots", roundedCoordinates(coordinates)] as const;
 }
 
 export async function requestLocationPermission(
-  requestPermission: () => Promise<LocationPermissionRequestResult>,
+  requestPermission: () => Promise<{ status: string }>,
   grantedStatus = "granted",
-): Promise<LocationPermissionResult> {
+) {
   try {
     const permission = await requestPermission();
     return permission.status === grantedStatus
-      ? { type: "granted" }
-      : { type: "denied" };
+      ? ({ type: "granted" } as const)
+      : ({ type: "denied" } as const);
   } catch (error) {
-    return { type: "error", error };
+    return { type: "error", error } as const;
   }
 }
 
@@ -78,7 +79,7 @@ export function formatHeadline(state: OpenState): string {
     return "closed";
   }
 
-  return "hours unknown — trust your gut";
+  return "hours unknown";
 }
 
 export function formatDistance(distanceMi: number): string {
@@ -89,12 +90,29 @@ export function formatDistance(distanceMi: number): string {
   return `${distanceMi.toFixed(1)} mi`;
 }
 
-export function formatAmenity(spot: Pick<Spot, "amenity">): string {
-  return spot.amenity.replaceAll("_", " ");
+export function formatAmenity(amenity: Spot["amenity"]): string {
+  return amenity.replaceAll("_", " ");
 }
 
-export function formatCuisine(spot: Pick<Spot, "amenity" | "cuisine">): string {
-  return spot.cuisine?.replaceAll(";", " · ") ?? formatAmenity(spot);
+function formatOsmList(value: string): string {
+  return value
+    .split(";")
+    .map((part) => part.trim().replaceAll("_", " "))
+    .filter(Boolean)
+    .join(" · ");
+}
+
+export function spotFoodDisplay(spot: Spot) {
+  return spot.cuisine
+    ? ({
+        label: "cuisine",
+        text: formatOsmList(spot.cuisine),
+      } as const)
+    : ({ label: "category", text: formatAmenity(spot.amenity) } as const);
+}
+
+export function formatCuisine(spot: Spot): string {
+  return spotFoodDisplay(spot).text;
 }
 
 export function formatClock(date: Date): string {
@@ -109,7 +127,7 @@ export function formatClock(date: Date): string {
 export function formatDetailState(state: OpenState): string {
   if (state.status === "open") {
     return state.closesAt
-      ? `${formatHeadline(state)} · closes ${formatClock(state.closesAt)}`
+      ? `open · closes ${formatClock(state.closesAt)}`
       : formatHeadline(state);
   }
 
@@ -117,7 +135,15 @@ export function formatDetailState(state: OpenState): string {
     return state.opensAt ? `closed · opens ${formatClock(state.opensAt)}` : "closed";
   }
 
-  return formatHeadline(state);
+  if (state.reason === "no hours in OSM") {
+    return "hours unknown · not listed in OpenStreetMap";
+  }
+
+  if (state.reason === "unparseable hours") {
+    return "hours unknown · OpenStreetMap hours need review";
+  }
+
+  return "hours unknown · could not read hours";
 }
 
 export function nextOpeningLabel(ranked: RankedSpot[]): string | null {
@@ -126,9 +152,14 @@ export function nextOpeningLabel(ranked: RankedSpot[]): string | null {
       (item) => item.state.status === "closed" && item.state.opensAt != null,
     )
     .sort((a, b) => {
-      const aTime = a.state.status === "closed" ? a.state.opensAt?.getTime() : null;
-      const bTime = b.state.status === "closed" ? b.state.opensAt?.getTime() : null;
-      return (aTime ?? Number.POSITIVE_INFINITY) - (bTime ?? Number.POSITIVE_INFINITY);
+      const aTime =
+        a.state.status === "closed" ? a.state.opensAt?.getTime() : null;
+      const bTime =
+        b.state.status === "closed" ? b.state.opensAt?.getTime() : null;
+      return (
+        (aTime ?? Number.POSITIVE_INFINITY) -
+        (bTime ?? Number.POSITIVE_INFINITY)
+      );
     })[0];
 
   if (!next || next.state.status !== "closed" || !next.state.opensAt) {
@@ -138,43 +169,79 @@ export function nextOpeningLabel(ranked: RankedSpot[]): string | null {
   return `next: ${next.spot.name.toLowerCase()} · ${formatClock(next.state.opensAt)}`;
 }
 
+export function rightNowRows(
+  ranked: RankedSpot[],
+  coordinates: Coordinates,
+) {
+  return ranked
+    .filter((item) => item.state.status !== "closed")
+    .map((item) => ({
+      ranked: item,
+      routeId: routeIdForSpotId(item.spot.id),
+      coordinates,
+    }));
+}
+
 export function routeIdForSpotId(id: string): string {
   return encodeURIComponent(id).replaceAll("~", "%7E").replaceAll("%", "~");
 }
 
-export function spotIdForRouteId(routeId: string | undefined): string | null {
-  if (!routeId) {
-    return null;
-  }
+function firstRouteParam(
+  value: z.infer<typeof RouteParamValueSchema>,
+): string {
+  return Array.isArray(value) ? value[0] : value;
+}
 
+export function spotIdForRouteId(routeId: UnknownOutputParams[string]): string {
+  const id = firstRouteParam(RouteParamValueSchema.parse(routeId));
   try {
-    return decodeURIComponent(routeId.replaceAll("~", "%"));
+    return decodeURIComponent(id.replaceAll("~", "%"));
   } catch {
-    return null;
+    throw new Error("Invalid spot route id");
   }
 }
 
-export function coordinatesFromParams(params: {
-  lat?: string | string[];
-  lon?: string | string[];
-}): Coordinates | null {
-  const lat = Array.isArray(params.lat) ? params.lat[0] : params.lat;
-  const lon = Array.isArray(params.lon) ? params.lon[0] : params.lon;
-  const parsed = {
-    lat: lat ? Number(lat) : NaN,
-    lon: lon ? Number(lon) : NaN,
-  };
+function coordinatesFromRouteParams(
+  params: z.infer<typeof RouteCoordinateParamsSchema>,
+): Coordinates {
+  const lat = firstRouteParam(params.lat);
+  const lon = firstRouteParam(params.lon);
+  const coordinates = CoordinatesSchema.safeParse({
+    lat: Number(lat),
+    lon: Number(lon),
+  });
 
-  if (!Number.isFinite(parsed.lat) || !Number.isFinite(parsed.lon)) {
-    return null;
+  if (!coordinates.success) {
+    throw new Error("Invalid spot coordinates");
   }
 
-  return roundedCoordinates(parsed);
+  return roundedCoordinates(coordinates.data);
+}
+
+export function coordinatesFromParams(params: UnknownOutputParams): Coordinates {
+  return coordinatesFromRouteParams(RouteCoordinateParamsSchema.parse(params));
+}
+
+export function spotDetailRouteFromParams(params: UnknownOutputParams) {
+  const parsedParams = SpotDetailRouteParamsSchema.safeParse(params);
+
+  if (!parsedParams.success) {
+    throw new Error("Invalid spot detail route params");
+  }
+
+  return {
+    coordinates: coordinatesFromRouteParams(parsedParams.data),
+    spotId: spotIdForRouteId(parsedParams.data.id),
+  };
+}
+
+export function navigationPlatformFromOS(platform: PlatformOSType) {
+  return NavigationPlatformSchema.parse(platform);
 }
 
 export function buildNavigateUrl(
-  spot: NavigableSpot,
-  platform: NavigationPlatform,
+  spot: Spot,
+  platform: z.infer<typeof NavigationPlatformSchema>,
 ): string {
   const lat = trimCoordinate(spot.coordinates.lat);
   const lon = trimCoordinate(spot.coordinates.lon);

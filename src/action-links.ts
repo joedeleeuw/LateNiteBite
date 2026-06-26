@@ -1,12 +1,27 @@
-export type OpenURL = (url: string) => Promise<unknown>;
-
 export async function openExternalUrl(
   url: string,
-  openURL: OpenURL,
+  openURL: (url: string) => Promise<unknown>,
 ): Promise<void> {
-  await openURL(url);
+  const trimmedUrl = url.trim();
+
+  if (!trimmedUrl) {
+    throw new Error("External URL is required");
+  }
+
+  new URL(trimmedUrl);
+  await openURL(trimmedUrl);
 }
 
 export function ensureHttpProtocol(url: string): string {
-  return /^https?:\/\//i.test(url) ? url : `https://${url}`;
+  const trimmedUrl = url.trim();
+
+  if (!trimmedUrl) {
+    throw new Error("Website URL is required");
+  }
+
+  const normalizedUrl = /^https?:\/\//i.test(trimmedUrl)
+    ? trimmedUrl
+    : `https://${trimmedUrl}`;
+  new URL(normalizedUrl);
+  return normalizedUrl;
 }

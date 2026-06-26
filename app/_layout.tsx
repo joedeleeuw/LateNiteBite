@@ -28,7 +28,12 @@ Sentry.init({
 });
 
 function RootLayout() {
-  const [queryClient] = useState(() => new QueryClient());
+  const [queryClient] = useState(
+    () =>
+      new QueryClient({
+        defaultOptions: { queries: { retry: false } },
+      }),
+  );
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

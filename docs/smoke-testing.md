@@ -21,7 +21,8 @@ pnpm smoke:android:doctor
 Build and install the app on the emulator first. This app requires Sentry configuration at bundle time:
 
 ```bash
-EXPO_PUBLIC_SENTRY_DSN=https://public@example.invalid/1 pnpm android
+EXPO_PUBLIC_LNB_API_BASE_URL=https://latenitebite.expo.app \
+  EXPO_PUBLIC_SENTRY_DSN=https://public@example.invalid/1 pnpm android
 ```
 
 Keep Metro running if you installed a debug build, then run the deterministic smoke:
@@ -51,7 +52,8 @@ Run these on the MacBook Pro, not Linux:
 
 ```bash
 pnpm smoke:ios:doctor
-EXPO_PUBLIC_SENTRY_DSN=https://public@example.invalid/1 pnpm ios
+EXPO_PUBLIC_LNB_API_BASE_URL=https://latenitebite.expo.app \
+  EXPO_PUBLIC_SENTRY_DSN=https://public@example.invalid/1 pnpm ios
 pnpm smoke:ios
 ```
 
@@ -73,7 +75,7 @@ pnpm smoke:ios:live
 Android permission denial uses the platform permission controller deny button id, then asserts:
 
 - `lnb_location_required`
-- `lnb_no_fallback_copy`
+- visible text `location required`
 - no `lnb_spot_list`
 - no `lnb_spot_row`
 

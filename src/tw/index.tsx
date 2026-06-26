@@ -1,3 +1,4 @@
+import { Image as ExpoImage } from "expo-image";
 import { Link as RouterLink } from "expo-router";
 import React from "react";
 import {
@@ -32,6 +33,11 @@ export const Pressable = withUniwind(RNPressable) as React.ComponentType<
   React.ComponentPropsWithRef<typeof RNPressable> & { className?: string }
 >;
 Pressable.displayName = "CSS(Pressable)";
+
+export const Image = withUniwind(ExpoImage) as React.ComponentType<
+  React.ComponentPropsWithRef<typeof ExpoImage> & { className?: string }
+>;
+Image.displayName = "CSS(Image)";
 
 export const Link = withUniwind(RouterLink) as React.ComponentType<
   React.ComponentProps<typeof RouterLink> & { className?: string }

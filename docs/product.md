@@ -6,7 +6,7 @@ est. 2015 · revived 2026 · built to win App Store of the Year (the team has do
 
 It's 1:30am. You're on foot, hungry, heading home or just getting started. Every existing answer fails:
 
-- **Google / Yelp** are built for daytime decisions — and their data is least reliable exactly at the late-night margin. Worse, they bluff when they don't know.
+- **Large review platforms** are built for daytime decisions — and their data is least reliable exactly at the late-night margin. Worse, they bluff when they don't know.
 - **Delivery apps** own late-night attention, tax it ~30%, and bury the walk-up spot 200 feet away.
 - **TikTok / IG** are discovery for *someday*, not *right now*.
 

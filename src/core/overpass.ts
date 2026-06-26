@@ -1,12 +1,14 @@
 import { z } from "zod";
+import { CoordinatesSchema } from "./geo";
 import { FOOD_AMENITIES, SpotSchema, type Spot } from "./spot";
 
-export type BBox = {
-  south: number;
-  west: number;
-  north: number;
-  east: number;
-};
+export const BBoxSchema = z.object({
+  south: z.number(),
+  west: z.number(),
+  north: z.number(),
+  east: z.number(),
+});
+export type BBox = z.infer<typeof BBoxSchema>;
 
 const OVERPASS_ENDPOINT = "https://overpass-api.de/api/interpreter";
 const REQUEST_TIMEOUT_MS = 35_000;
@@ -22,8 +24,8 @@ const OverpassElementSchema = z.object({
   id: z.number(),
   lat: z.number().optional(),
   lon: z.number().optional(),
-  center: z.object({ lat: z.number(), lon: z.number() }).optional(),
-  tags: z.record(z.string(), z.string()).default({}),
+  center: CoordinatesSchema.optional(),
+  tags: z.record(z.string(), z.string()),
 });
 
 const OverpassResponseSchema = z.object({
@@ -35,14 +37,15 @@ function parseElements(raw: unknown): Spot[] {
 
   const spots: Spot[] = [];
   for (const el of elements) {
+    if (!el.tags.name) continue;
+
     const coords =
       el.center ??
       (el.lat != null && el.lon != null
         ? { lat: el.lat, lon: el.lon }
-        : null);
-    if (!coords || !el.tags.name) continue;
+        : undefined);
 
-    const parsed = SpotSchema.safeParse({
+    spots.push(SpotSchema.parse({
       id: `${el.type}/${el.id}`,
       name: el.tags.name,
       amenity: el.tags.amenity,
@@ -51,8 +54,7 @@ function parseElements(raw: unknown): Spot[] {
       cuisine: el.tags.cuisine,
       phone: el.tags.phone ?? el.tags["contact:phone"],
       website: el.tags.website ?? el.tags["contact:website"],
-    });
-    if (parsed.success) spots.push(parsed.data);
+    }));
   }
   return spots;
 }
@@ -60,7 +62,7 @@ function parseElements(raw: unknown): Spot[] {
 const HEADERS = {
   Accept: "application/json",
   "User-Agent":
-    "LateNiteBite-revival/0.1 (late-night food finder; +https://github.com/joedeleeuw/LateNiteBite)",
+    "LateNiteBite/1.0.3 (late-night food finder; +https://github.com/joedeleeuw/LateNiteBite)",
 };
 
 export async function fetchSpots(bbox: BBox): Promise<Spot[]> {

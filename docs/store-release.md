@@ -10,6 +10,14 @@ eas build --platform all --profile production
 eas submit --platform all --profile production --latest
 ```
 
+Production builds and hosting deploys require these EAS environment variables:
+
+- `EXPO_PUBLIC_SENTRY_DSN` for app startup and Sentry symbol/source-map wiring.
+- `EXPO_PUBLIC_LNB_API_BASE_URL`, currently `https://latenitebite.expo.app`, for native photo API requests.
+- `GOOGLE_PLACES_API_KEY` for server-side Google Places photo lookup.
+
+The release and TestFlight workflows deploy EAS Hosting before store submission so `/api/spot-photos` is live when native builds reach testers.
+
 Android submit uses EAS-managed Google service-account credentials. Upload the service-account JSON once with `eas credentials --platform android`; do not commit it.
 
 iOS submit uses the non-secret defaults in `eas.json`. App Store Connect credentials, team, and app record access are provided interactively by EAS CLI or through environment variables.
@@ -42,6 +50,6 @@ eas metadata:push --profile production
 - Google Play app record and first manual upload if Play API has not accepted this package yet.
 - Public privacy policy URL.
 - Public support URL.
-- App Store privacy answers for foreground location use and network requests to Overpass/OpenStreetMap.
-- Play Data Safety answers for foreground location use and network transmission.
+- App Store privacy answers for foreground location use, direct Overpass/OpenStreetMap requests, Sentry crash/diagnostic telemetry, and spot-photo requests that send place coordinates to the first-party EAS Hosting API; the hosted API calls Google Places server-side.
+- Play Data Safety answers for foreground location use, direct Overpass/OpenStreetMap requests, Sentry crash/diagnostic telemetry, and spot-photo requests that send place coordinates to the first-party EAS Hosting API; the hosted API calls Google Places server-side.
 - Content rating, target audience, pricing, availability, screenshots, and review contact details.

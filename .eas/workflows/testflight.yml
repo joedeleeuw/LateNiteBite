@@ -8,6 +8,13 @@ concurrency:
   group: ${{ workflow.filename }}-${{ github.ref }}
 
 jobs:
+  deploy_hosting:
+    name: Deploy EAS Hosting
+    type: deploy
+    environment: production
+    params:
+      prod: true
+
   build_ios:
     name: Build iOS Release Candidate
     type: build
@@ -19,7 +26,7 @@ jobs:
   upload_testflight:
     name: Upload to TestFlight
     type: submit
-    needs: [build_ios]
+    needs: [build_ios, deploy_hosting]
     environment: production
     params:
       build_id: ${{ needs.build_ios.outputs.build_id }}

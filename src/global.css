@@ -3,6 +3,7 @@
 @import "tailwindcss/utilities.css";
 @import "uniwind";
 @source "../app";
+@source "../src";
 
 @layer base {
   html {
@@ -67,4 +68,3 @@
     --color-lnb-closed: var(--lnb-closed);
   }
 }
-

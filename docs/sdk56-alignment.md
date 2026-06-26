@@ -22,10 +22,10 @@ Audited 2026-06-09. Every decision below names the LNB use case or the reason it
 | 10 | `@expo/ui` — datetime-picker community drop-in | **Defer → Phase 2** | Same as above — Phase 2 time-filter feature. |
 | 11 | `expo-widgets` (iOS lock-screen / home-screen widget) | **Defer → Phase 2/3** | **Flagged opportunity:** "N spots open near you right now" is a high-value widget for exactly this product — on-foot, glanceable, lock-screen-first. Structurally only possible with OSM client-compute (no per-query bill). Pick up at Phase 2/3 when the data spine is exercised on device and EAS is wired. |
 | 12 | EAS Convex integration (`eas integrations:convex:connect`) | **Defer → Phase 3** | Phase 3 is literally Convex + Clerk. No native build exists yet. |
-| 13 | Android `usePrecompiledHeaders` (expo-build-properties) | **Defer → when native builds hurt** | No native Android build exists yet; benchmark pain isn't present. Add `expo-build-properties` and flip the flag when CI Android build times become a friction point. |
+| 13 | Android `usePrecompiledHeaders` (expo-build-properties) | **Defer → when native builds hurt** | Native builds are generated through prebuild and EAS/local smoke scripts now exist, but build-time pain is not measured yet. Add `expo-build-properties` and flip the flag when Android build times become a friction point. |
 | 14 | `expo-router` decoupled from `@react-navigation/*` | **Verified — no action** | Zero `@react-navigation/*` imports or deps in the repo. expo-doctor's dedicated check passes. |
 | 15 | `SuspenseFallback` export / `createStaticLoader` / `createServerLoader` | **Reject** | TanStack Query is the data layer; these loader helpers duplicate that responsibility. `SuspenseFallback` is a Phase 1 note at most — only relevant once the Right Now screen has a loading state worth designing. |
-| 16 | Streaming SSR flag | **Reject** | Web output is `single` (SPA); streaming SSR doesn't apply to Metro SPA export. |
+| 16 | Streaming SSR flag | **Reject** | Web output is `server` so Expo Router API routes can serve provider-backed photo lookups. Streaming SSR still does not apply to the current UI surface. |
 | 17 | Hermes v1 default, RN 0.85 new animation backend | **Verified — no action** | Already on Hermes + RN 0.85. New animation backend is the `react-native-reanimated@4` path we're already on. |
 | 18 | HTTPS dev server (geolocation on LAN devices) | **Note for Phase 1** | Web geolocation requires a secure origin. When Phase 1 tests the map + geolocation flow on LAN devices, use `expo start --tunnel` or configure a local HTTPS cert. No code change needed now. |
 | 19 | `import.meta` support | **Verified — no action** | No `import.meta` usage currently. Available if needed. |
@@ -43,7 +43,7 @@ Audited 2026-06-09. Every decision below names the LNB use case or the reason it
 
 - **Adopted now:** 4 (AbortSignal.timeout, CLAUDE.md + AGENTS.md, app.json schema fix, expo.install.exclude list)
 - **Deferred:** 8 (expo-navigation-bar → Phase 1; @expo/ui bottom-sheet → Phase 1; Material Symbols → Phase 1; useNativeState + datetime-picker → Phase 2; expo-widgets → Phase 2/3; EAS Convex → Phase 3; usePrecompiledHeaders → when native builds hurt; Hermes bytecode diffing → when expo-updates added)
-- **Rejected:** 3 (useMaterialColors / dynamic color — brand law; createStaticLoader/createServerLoader — TanStack Query owns data; streaming SSR — SPA export)
+- **Rejected:** 3 (useMaterialColors / dynamic color — brand law; createStaticLoader/createServerLoader — TanStack Query owns data; streaming SSR — not used by the current server-output UI)
 - **Verified, no action:** 9 (react-navigation clean, expo-router, Hermes+RN0.85, HTTPS note, import.meta, @expo/vector-icons, legacy APIs, tool minimums, Metro defaults)
 
 ---

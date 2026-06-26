@@ -21,6 +21,15 @@ describe("action links", () => {
     );
   });
 
+  it("rejects blank external urls before invoking native linking", async () => {
+    const openURL = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+
+    await expect(openExternalUrl(" ", openURL)).rejects.toThrow(
+      "External URL is required",
+    );
+    expect(openURL).not.toHaveBeenCalled();
+  });
+
   it("normalizes bare website URLs without changing explicit protocols", () => {
     expect(ensureHttpProtocol("latenitebite.example")).toBe(
       "https://latenitebite.example",
@@ -31,5 +40,6 @@ describe("action links", () => {
     expect(ensureHttpProtocol("https://latenitebite.example")).toBe(
       "https://latenitebite.example",
     );
+    expect(() => ensureHttpProtocol(" ")).toThrow("Website URL is required");
   });
 });
